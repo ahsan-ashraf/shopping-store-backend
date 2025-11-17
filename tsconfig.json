@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "ES2020", // modern JS features supported in Node 16+
+    "module": "CommonJS", // Node.js module system
+    "rootDir": "src", // source folder
+    "outDir": "dist", // compiled JS folder
+    "strict": true, // enable strict type checking
+    "esModuleInterop": true, // allow import express like ES6
+    "skipLibCheck": true, // skip type checking of node_modules
+    "forceConsistentCasingInFileNames": true,
+    "sourceMap": true, // generate source maps for debugging
+    "declaration": true // generate type declarations
+  }
+}
