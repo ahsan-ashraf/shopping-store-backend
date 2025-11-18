@@ -1,14 +1,25 @@
 {
   "compilerOptions": {
-    "target": "ES2020", // or ES2019/ES2020+ is fine
-    "module": "commonjs", // IMPORTANT: use commonjs to avoid ESM issues
-    "rootDir": "./src", // where your TS code lives
-    "outDir": "./dist", // compiled JS output
-    "moduleResolution": "node",
-    "esModuleInterop": true, // IMPORTANT: allows 'import express from "express"'
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "resolvePackageJsonExports": true,
+    "esModuleInterop": true,
+    "isolatedModules": true,
+    "declaration": true,
+    "removeComments": true,
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ES2023",
+    "sourceMap": true,
+    "outDir": "./dist",
+    "baseUrl": "./",
+    "incremental": true,
+    "skipLibCheck": true,
+    "strictNullChecks": true,
     "forceConsistentCasingInFileNames": true,
-    "strict": true,
-    "skipLibCheck": true
-  },
-  "include": ["src"]
+    "noImplicitAny": false,
+    "strictBindCallApply": false,
+    "noFallthroughCasesInSwitch": false
+  }
 }
