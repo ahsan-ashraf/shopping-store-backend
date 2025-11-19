@@ -41,3 +41,5 @@ Thumbs.db
 
 # Optional TypeScript cache
 *.tsbuildinfo
+
+/generated/prisma

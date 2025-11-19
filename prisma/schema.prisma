@@ -1,0 +1,278 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SuperAdmin
+  Admin
+  Seller
+  Rider
+  Buyer
+}
+
+enum Gender {
+  male
+  female
+  other
+}
+
+model User {
+  id        String    @id @default(uuid())
+  name      String
+  email     String    @unique
+  phone     String
+  dob       DateTime
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  role      Role
+  gender    Gender
+  buyer     Buyer?
+  seller    Seller?
+  rider     Rider?
+  addresses Address[]
+}
+
+model Buyer {
+  id             String          @id @default(uuid())
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String          @unique
+  walletAmount   Decimal
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  productReviews ProductReview[]
+  wishlists      Wishlist[]
+  carts          Cart[]
+  orders         Order[]
+  returnRequests ReturnRequest[]
+}
+
+model Seller {
+  id         String   @id @default(uuid())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String   @unique
+  businessId String
+  IBAN       String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  stores     Store[]
+}
+
+model Rider {
+  id             String          @id @default(uuid())
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId         String          @unique
+  vehicleRegNo   String
+  companyPhone   String
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  orders         Order[]
+  returnRequests ReturnRequest[]
+}
+
+model Address {
+  id         String   @id @default(uuid())
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String
+  address    String
+  city       String
+  province   String
+  postalCode String
+  isPrimary  Boolean
+  phone      String
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  orders     Order[]
+}
+
+model Category {
+  id        String   @id @default(uuid())
+  name      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  stores    Store[]
+}
+
+model Store {
+  id                String             @id @default(uuid())
+  seller            Seller             @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  sellerId          String
+  bannerImage       String
+  iconImage         String
+  storeName         String
+  description       String
+  category          Category           @relation(fields: [categoryId], references: [id])
+  categoryId        String
+  youtube           String
+  facebook          String
+  instagram         String
+  tiktok            String
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  storePerformances StorePerformance[]
+  products          Product[]
+
+  @@index([sellerId])
+  @@index([categoryId])
+}
+
+model StorePerformance {
+  id          String   @id @default(uuid())
+  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  storeId     String
+  impressions Int
+  views       Int
+  orders      Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Product {
+  id             String          @id @default(uuid())
+  store          Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  storeId        String
+  stock          Int
+  title          String
+  description    String
+  brand          String
+  color          String[]
+  size           String[]
+  images         String[]
+  tags           String[]
+  video          String
+  returnPolicy   Boolean
+  warranty       Boolean
+  rating         Decimal
+  price          Decimal
+  salePrice      Decimal?
+  saleExpiresAt  DateTime?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  productReviews ProductReview[]
+  productStats   ProductStat[]
+  wishlists      Wishlist[]
+  carts          Cart[]
+  orderItems     OrderItem[]
+  returnRequests ReturnRequest[]
+
+  @@index([title])
+  @@index([storeId])
+}
+
+model ProductReview {
+  id        String   @id @default(uuid())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId String
+  buyer     Buyer?   @relation(fields: [buyerId], references: [id], onDelete: SetNull)
+  buyerId   String?
+  comment   String
+  reply     String?
+  images    String[]
+  date      DateTime
+  rating    Decimal
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ProductStat {
+  id          String   @id @default(uuid())
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId   String
+  date        DateTime
+  impressions Int
+  views       Int
+  orders      Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Wishlist {
+  id        String   @id @default(uuid())
+  buyer     Buyer    @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  buyerId   String
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // prevent from adding same product into wishlist twice
+  @@unique([buyerId, productId])
+}
+
+model Cart {
+  id        String   @id @default(uuid())
+  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  productId String
+  buyer     Buyer    @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  buyerId   String
+  qty       Int
+  price     Decimal
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // prevent from adding same product into cart twice
+  @@unique([buyerId, productId])
+}
+
+model Order {
+  id                String          @id @default(uuid())
+  buyer             Buyer?          @relation(fields: [buyerId], references: [id], onDelete: SetNull)
+  buyerId           String?
+  deliveryAddress   Address         @relation(fields: [deliveryAddressId], references: [id])
+  deliveryAddressId String
+  paymentMethod     String // define enum later
+  paymentStatus     String // define enum later
+  totalPrice        Decimal
+  status            String // define enum later (pending, processing, out for deliver, delivered, canceled, returned)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  rider             Rider?          @relation(fields: [riderId], references: [id], onDelete: SetNull)
+  riderId           String?
+  orderItems        OrderItem[]
+  returnRequests    ReturnRequest[]
+
+  @@index([buyerId])
+  @@index([riderId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id                  String   @id @default(uuid())
+  order               Order    @relation(fields: [orderId], references: [id])
+  orderId             String
+  product             Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productId           String?
+  qty                 Int
+  size                String
+  color               String
+  priceAtPurchase     Decimal
+  salePriceAtPurchase Decimal
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model ReturnRequest {
+  id             String   @id @default(uuid())
+  buyer          Buyer?   @relation(fields: [buyerId], references: [id], onDelete: SetNull)
+  buyerId        String?
+  product        Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productId      String?
+  rider          Rider?   @relation(fields: [riderId], references: [id], onDelete: SetNull)
+  riderId        String?
+  order          Order    @relation(fields: [orderId], references: [id])
+  orderId        String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  reason         String
+  images         String[]
+  status         String // create enuim later
+  amountReceived Decimal
+
+  @@index([status])
+}
