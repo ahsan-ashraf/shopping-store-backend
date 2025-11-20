@@ -1,13 +1,12 @@
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["clientExtensions"]
-  // let Prisma handle output + mode automatically
+  provider = "prisma-client-js"
 }
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
+  url      = env("DATABASE_URL") // Prisma 7+ supports this
 }
+
 
 enum Role {
   SuperAdmin

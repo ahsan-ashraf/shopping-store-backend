@@ -1,9 +1,18 @@
+import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+
+  app.useGlobalPipes(
+    new ValidationPipe({
+      whitelist: true, // strips unknown fields
+      forbidNonWhitelisted: true, // throws if unknown fields provided
+      transform: true, // transforms strings → proper types (Date, number, etc)
+    }),
+  );
 
   // swagger configuration
   const swaggerConfig = new DocumentBuilder()
