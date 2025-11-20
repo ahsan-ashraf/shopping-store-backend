@@ -4,9 +4,8 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL") // Prisma 7+ supports this
+  url      = env("DATABASE_URL")
 }
-
 
 enum Role {
   SuperAdmin
@@ -43,8 +42,6 @@ model Buyer {
   user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
   userId         String          @unique
   walletAmount   Decimal
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
   productReviews ProductReview[]
   wishlists      Wishlist[]
   carts          Cart[]
@@ -53,13 +50,11 @@ model Buyer {
 }
 
 model Seller {
-  id         String   @id @default(uuid())
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId     String   @unique
+  id         String  @id @default(uuid())
+  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId     String  @unique
   businessId String
   IBAN       String
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
   stores     Store[]
 }
 
@@ -69,8 +64,6 @@ model Rider {
   userId         String          @unique
   vehicleRegNo   String
   companyPhone   String
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
   orders         Order[]
   returnRequests ReturnRequest[]
 }
