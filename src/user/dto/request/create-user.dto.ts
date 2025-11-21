@@ -1,62 +1,61 @@
-import { Role, Gender } from 'generated/prisma/enums';
-import { AddressDto } from '../../../common/dto/address.dto';
+import { Role, Gender } from "generated/prisma/enums";
 import {
   IsDate,
   IsEmail,
   IsEnum,
   IsString,
   Length,
-  ValidateNested,
-} from 'class-validator';
-import { Type } from 'class-transformer';
-import { ApiProperty } from '@nestjs/swagger';
-import { CreateUserAddressDto } from './create-user-address.dto';
+  ValidateNested
+} from "class-validator";
+import { Type } from "class-transformer";
+import { ApiProperty } from "@nestjs/swagger";
+import { CreateUserAddressDto } from "./create-user-address.dto";
 
 export class CreateUserDto {
   @ApiProperty({
-    description: 'Full name of the user',
+    description: "Full name of the user",
     minLength: 3,
-    maxLength: 20,
+    maxLength: 20
   })
   @IsString()
   @Length(3, 20)
   name: string;
 
-  @ApiProperty({ description: 'Email address of the user' })
+  @ApiProperty({ description: "Email address of the user" })
   @IsEmail()
   email: string;
 
   @ApiProperty({
-    description: 'Password for the user account',
+    description: "Password for the user account",
     minLength: 6,
-    maxLength: 100,
+    maxLength: 100
   })
   @IsString()
   @Length(6, 100)
   password: string;
 
   @ApiProperty({
-    description: 'Date of birth of the user',
+    description: "Date of birth of the user",
     type: String,
-    format: 'date-time',
+    format: "date-time"
   })
   @IsDate()
   @Type(() => Date)
   dob: Date;
 
-  @ApiProperty({ description: 'Role of the user', enum: Role })
+  @ApiProperty({ description: "Role of the user", enum: Role })
   @IsEnum(Role)
   role: Role;
 
-  @ApiProperty({ description: 'Gender of the user', enum: Gender })
+  @ApiProperty({ description: "Gender of the user", enum: Gender })
   @IsEnum(Gender)
   gender: Gender;
 
   @ApiProperty({
-    description: 'Primary address of the user',
-    type: () => CreateUserAddressDto,
+    description: "Primary address of the user",
+    type: () => CreateUserAddressDto
   })
   @ValidateNested()
   @Type(() => CreateUserAddressDto)
-  addresses: CreateUserAddressDto;
+  addresses: CreateUserAddressDto[];
 }
