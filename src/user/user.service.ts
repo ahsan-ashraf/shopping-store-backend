@@ -27,6 +27,7 @@ export class UserService {
           dob: dto.dob,
           role: dto.role,
           gender: dto.gender,
+          status: dto.status,
           addresses: {
             create: dto.addresses
           }
@@ -56,6 +57,7 @@ export class UserService {
           gender: dto.gender,
           dob: dto.dob,
           role: dto.role,
+          status: dto.status,
           buyer: {
             create: {
               walletAmount: dto.walletAmount
@@ -91,6 +93,7 @@ export class UserService {
           gender: dto.gender,
           dob: dto.dob,
           role: dto.role,
+          status: dto.status,
           seller: {
             create: {
               businessId: dto.businessId,
@@ -125,6 +128,7 @@ export class UserService {
           gender: dto.gender,
           dob: dto.dob,
           role: dto.role,
+          status: dto.status,
           rider: {
             create: {
               vehicleRegNo: dto.vehicleRegNo,
@@ -154,15 +158,15 @@ export class UserService {
     return `This action returns all users`;
   }
 
-  findOne(id: number) {
+  findOne(id: string) {
     return `This action returns a #${id} user`;
   }
 
-  update(id: number, updateUserDto: UpdateUserDto) {
+  update(id: string, updateUserDto: UpdateUserDto) {
     return `This action updates a #${id} user`;
   }
 
-  remove(id: number) {
+  remove(id: string) {
     return `This action removes a #${id} user`;
   }
 }

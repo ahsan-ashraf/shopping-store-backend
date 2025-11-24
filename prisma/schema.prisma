@@ -21,7 +21,7 @@ enum Gender {
   other
 }
 
-enum Status{
+enum Status {
   pendingApproval
   active
   blocked

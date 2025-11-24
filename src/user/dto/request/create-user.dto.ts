@@ -1,15 +1,9 @@
 import { Role, Gender } from "generated/prisma/enums";
-import {
-  IsDate,
-  IsEmail,
-  IsEnum,
-  IsString,
-  Length,
-  ValidateNested
-} from "class-validator";
+import { IsDate, IsEmail, IsEnum, IsString, Length, ValidateNested } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty } from "@nestjs/swagger";
 import { CreateUserAddressDto } from "./create-user-address.dto";
+import { Status } from "src/types";
 
 export class CreateUserDto {
   @ApiProperty({
@@ -58,4 +52,8 @@ export class CreateUserDto {
   @ValidateNested()
   @Type(() => CreateUserAddressDto)
   addresses: CreateUserAddressDto[];
+
+  @ApiProperty({ description: "Whether the user active or not" })
+  @IsEnum(Status)
+  status: Status;
 }
