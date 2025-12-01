@@ -11,7 +11,7 @@ export class StoreService {
     private readonly s3Service: S3Service
   ) {}
 
-  async get(storeId: string) {
+  async findOne(storeId: string) {
     // validate users first via ids in jwt tokens
     const store = await this.prisma.store.findUnique({ where: { id: storeId } });
     return store;
@@ -20,7 +20,13 @@ export class StoreService {
   // whether this seller has premium acc or hit max store limits and we are also not checking ids from tokens yet
   async create(dto: CreateStoreDto, iconImage: Express.Multer.File, bannerImage: Express.Multer.File) {
     const filesToUpload = [iconImage, bannerImage];
-    const uploadedFiles = await Promise.all(filesToUpload.map((file) => this.s3Service.uploadFile(file, "_uploads")));
+
+    let uploadedFiles;
+    try {
+      uploadedFiles = await Promise.all(filesToUpload.map((file) => this.s3Service.uploadFile(file, "_uploads")));
+    } catch (err) {
+      throw new InternalServerErrorException(`Couldn't upload images to server: ${err?.message}`);
+    }
 
     try {
       const store = this.prisma.store.create({

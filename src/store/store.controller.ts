@@ -11,7 +11,7 @@ export class StoreController {
 
   @Get("/:storeId")
   async $getStore(@Param("storeId") storeId: string) {
-    return await this.storeService.get(storeId);
+    return await this.storeService.findOne(storeId);
   }
   @Post("/register")
   @UseInterceptors(
