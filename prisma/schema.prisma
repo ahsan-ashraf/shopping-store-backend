@@ -102,16 +102,18 @@ model Store {
   id                String             @id @default(uuid())
   seller            Seller             @relation(fields: [sellerId], references: [id], onDelete: Cascade)
   sellerId          String
-  bannerImage       String
-  iconImage         String
+  bannerImageUrl    String
+  bannerImageName   String
+  iconImageUrl      String
+  iconImageName     String
   storeName         String
   description       String
   category          Category           @relation(fields: [categoryId], references: [id])
   categoryId        String
-  youtube           String
-  facebook          String
-  instagram         String
-  tiktok            String
+  youtube           String?
+  facebook          String?
+  instagram         String?
+  tiktok            String?
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   storePerformances StorePerformance[]

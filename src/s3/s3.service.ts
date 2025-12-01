@@ -1,5 +1,5 @@
 import { Injectable, InternalServerErrorException } from "@nestjs/common";
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from "@aws-sdk/client-s3";
+import { S3Client, PutObjectCommand, DeleteObjectCommand, CopyObjectCommand } from "@aws-sdk/client-s3";
 import { v4 as uuidv4 } from "uuid";
 
 @Injectable()
@@ -28,7 +28,7 @@ export class S3Service {
           Key: key,
           Body: file.buffer,
           ContentType: file.mimetype
-          //   ACL: isPublic ? "public-read" : undefined // make public if needed
+          //   ACL: isPublic ? "public-read" : undefined // make public if needed   // commented out because bucket is not allowing ACL
         })
       );
 
@@ -53,5 +53,20 @@ export class S3Service {
     } catch (err) {
       throw new InternalServerErrorException("-=>2. Failed to delete file from s3");
     }
+  }
+
+  async copyFile(oldKey: string, newKey: string) {
+    await this.s3.send(
+      new CopyObjectCommand({
+        Bucket: this.bucket,
+        CopySource: `${this.bucket}/${oldKey}`,
+        Key: newKey
+      })
+    );
+  }
+
+  async moveFile(oldKey: string, newKey: string) {
+    await this.copyFile(oldKey, newKey);
+    await this.deleteFile(oldKey);
   }
 }

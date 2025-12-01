@@ -9,18 +9,13 @@ async function bootstrap() {
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true, // strips unknown fields
-      forbidNonWhitelisted: true, // throws if unknown fields provided
-      transform: true // transforms strings → proper types (Date, number, etc)
+      forbidNonWhitelisted: false, // throws if unknown fields provided
+      transform: true // transforms strings proper types (Date, number, etc)
     })
   );
 
   // swagger configuration
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle("Shopping Store APIs")
-    .setDescription("API Documentation for Shopping Store")
-    .setVersion("1.0")
-    .addTag("Shopping Store")
-    .build();
+  const swaggerConfig = new DocumentBuilder().setTitle("Shopping Store APIs").setDescription("API Documentation for Shopping Store").setVersion("1.0").addTag("Shopping Store").build();
 
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup("api", app, document);
