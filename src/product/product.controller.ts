@@ -40,16 +40,20 @@ export class ProductController {
     ])
   )
   create(@Param("storeId") storeId: string, @Body() createProductDto: CreateProductDto, @UploadedFiles() files: { images: Express.Multer.File[]; video: Express.Multer.File[] }) {
+    // TODO: make sure its a valid seller, user and store from jwt.
+    // i'll put all store's ids inside jwt so get store ids from there, for now i'm passing it in arguments
     return this.productService.create(storeId, createProductDto, files.images, files.video?.[0] || null);
   }
 
   @Get("/:storeId")
   findAll(@Param("storeId") storeId: string) {
+    // TODO: validate user and seller from jwt first
     return this.productService.findAll(storeId);
   }
 
   @Get(":productId")
   findOne(@Param("productId") productId: string) {
+    // TODO: validate user and seller from jwt first
     return this.productService.findOne(productId);
   }
 
@@ -75,7 +79,7 @@ export class ProductController {
         images: { type: "string", format: "binary" },
         video: { type: "string", format: "binary" }
       },
-      required: ["stock", "title", "description", "brand", "tags", "returnPolicy", "warranty", "price", "images"]
+      required: ["stock", "title", "description", "brand", "tags", "returnPolicy", "warranty", "price"]
     }
   })
   @UseInterceptors(
@@ -85,11 +89,13 @@ export class ProductController {
     ])
   )
   update(@Param("productId") productId: string, @Body() updateProductDto: UpdateProductDto, @UploadedFiles() files: { images?: Express.Multer.File[]; video?: Express.Multer.File[] }) {
+    //TODO:  validate users and otehr things before sending request here
     return this.productService.update(productId, updateProductDto, files.images || null, files.video?.[0] || null);
   }
 
   @Delete(":productId")
   remove(@Param("productId") productId: string) {
+    // TODO: validate user and seller from jwt ids first, also get store id to add that in trash folder directory
     return this.productService.remove(productId);
   }
 }

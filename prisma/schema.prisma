@@ -16,15 +16,39 @@ enum Role {
 }
 
 enum Gender {
-  male
-  female
-  other
+  Male @map("male")
+  Female @map("female")
+  Other @map("other")
 }
 
-enum Status {
-  pendingApproval
-  active
-  blocked
+enum UserStatus {
+  PendingApproval @map("pendingApproval")
+  Active @map("active")
+  Blocked @map("blocked")
+	@@map("Status")
+}
+
+enum paymentMethod {
+  Prepaid
+  PostPaid
+}
+
+enum PaymentStatus {
+  Paid
+  Pending
+}
+
+enum OrderStatus {
+  Processing
+  OutForDeliver
+  Delivered
+  FailedToDeliver
+}
+
+enum ReturnRequestStatus {
+  ReturnRequested
+  ReturnInProgress
+  Returned
 }
 
 model User {
@@ -35,7 +59,7 @@ model User {
   password  String
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
-  status    Status    @default(pendingApproval)
+  status    UserStatus    @default(PendingApproval)
   role      Role
   gender    Gender
   buyer     Buyer?
@@ -147,7 +171,7 @@ model Product {
   size           String[]
   images         String[]
   tags           String[]
-  video          String // make video optional here
+  video          String?
   returnPolicy   Boolean
   warranty       Boolean
   rating         Decimal
@@ -225,13 +249,13 @@ model Cart {
 model Order {
   id                String          @id @default(uuid())
   buyer             Buyer?          @relation(fields: [buyerId], references: [id], onDelete: SetNull)
-  buyerId           String?
+  buyerId           String?// optional for anonymous buyers
   deliveryAddress   Address         @relation(fields: [deliveryAddressId], references: [id])
   deliveryAddressId String
-  paymentMethod     String // define enum later
-  paymentStatus     String // define enum later
+  paymentMethod     paymentMethod
+  paymentStatus     PaymentStatus
   totalPrice        Decimal
-  status            String // define enum later (pending, processing, out for deliver, delivered, canceled, returned)
+  status            OrderStatus     @default(Processing)
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
   rider             Rider?          @relation(fields: [riderId], references: [id], onDelete: SetNull)
@@ -239,8 +263,7 @@ model Order {
   orderItems        OrderItem[]
   returnRequests    ReturnRequest[]
 
-  @@index([buyerId])
-  @@index([riderId])
+  @@unique([id, buyerId])
   @@index([status])
   @@index([createdAt])
 }
@@ -274,7 +297,7 @@ model ReturnRequest {
   updatedAt      DateTime @updatedAt
   reason         String
   images         String[]
-  status         String // create enuim later
+  status         ReturnRequestStatus
   amountReceived Decimal
 
   @@index([status])

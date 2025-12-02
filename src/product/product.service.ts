@@ -13,9 +13,6 @@ export class ProductService {
   ) {}
 
   async create(storeId: string, dto: CreateProductDto, images: Express.Multer.File[], video: Express.Multer.File | null) {
-    // TODO: make sure its a valid seller, user and store from jwt.
-    // i'll put all store's ids inside jwt so get store ids from there, for now i'm passing it in arguments
-
     const store = await this.prisma.store.findUnique({ where: { id: storeId } });
     if (!store) {
       throw new BadRequestException("Store Not Found");
@@ -68,7 +65,6 @@ export class ProductService {
   }
 
   async findAll(storeId: string) {
-    // TODO: validate user and seller from jwt first
     try {
       const storeExists = await this.prisma.store.count({ where: { id: storeId } });
       if (!storeExists) {
@@ -83,7 +79,6 @@ export class ProductService {
   }
 
   async findOne(id: string) {
-    // TODO: validate user and seller from jwt first
     try {
       const product = await this.prisma.product.findUnique({ where: { id } });
       if (!product) {
@@ -108,7 +103,7 @@ export class ProductService {
       const trashVideo = `${trashFolder}/video_${product.video}`;
 
       try {
-        await this.s3Service.moveFile(product.video, trashVideo);
+        if (product.video) await this.s3Service.moveFile(product.video, trashVideo);
       } catch (err) {
         throw new InternalServerErrorException(`Failed to move old video to trash: ${err?.message}`);
       }
@@ -116,9 +111,11 @@ export class ProductService {
       try {
         uploadedVideo = await this.s3Service.uploadFile(video);
       } catch (err) {
-        await this.s3Service.moveFile(trashVideo, product.video).catch(() => {
-          console.error("Rollback failed, schedual a retry routine here.");
-        });
+        if (product.video) {
+          await this.s3Service.moveFile(trashVideo, product.video).catch(() => {
+            console.error("Rollback failed, schedual a retry routine here.");
+          });
+        }
         throw new InternalServerErrorException(`Failed to upload new video: ${err?.message}`);
       }
     }
@@ -133,9 +130,11 @@ export class ProductService {
           await this.s3Service.deleteFile(uploadedVideo.key).catch(() => {
             console.error("Failed to delete uploaded video, schedual a retry routine here.");
           });
-          await this.s3Service.moveFile(`${trashFolder}/video_${product.video}`, product.video).catch(() => {
-            console.error("Rollback failed, schedual a retry routine here.");
-          });
+          if (product.video) {
+            await this.s3Service.moveFile(`${trashFolder}/video_${product.video}`, product.video).catch(() => {
+              console.error("Rollback failed, schedual a retry routine here.");
+            });
+          }
         }
         throw new InternalServerErrorException(`Failed to move old images to trash: ${err?.message}`);
       }
@@ -147,9 +146,11 @@ export class ProductService {
           await this.s3Service.deleteFile(uploadedVideo.key).catch(() => {
             console.error("Failed to delete uploaded video, schedual a retry routine here.");
           });
-          await this.s3Service.moveFile(`${trashFolder}/video_${product.video}`, product.video).catch(() => {
-            console.error("Rollback failed, schedual a retry routine here.");
-          });
+          if (product.video) {
+            await this.s3Service.moveFile(`${trashFolder}/video_${product.video}`, product.video).catch(() => {
+              console.error("Rollback failed, schedual a retry routine here.");
+            });
+          }
         }
         await Promise.all(
           trashImages.map((img, i) =>
@@ -177,9 +178,11 @@ export class ProductService {
         await this.s3Service.deleteFile(uploadedVideo.key).catch(() => {
           console.error("Failed to delete uploaded video, schedual a retry routine here.");
         });
-        await this.s3Service.moveFile(`${trashFolder}/video_${product.video}`, product.video).catch(() => {
-          console.error("Rollback failed, schedual a retry routine here.");
-        });
+        if (product.video) {
+          await this.s3Service.moveFile(`${trashFolder}/video_${product.video}`, product.video).catch(() => {
+            console.error("Rollback failed, schedual a retry routine here.");
+          });
+        }
       }
       if (uploadedImages.length) {
         await Promise.all(
@@ -213,7 +216,6 @@ export class ProductService {
   }
 
   async remove(id: string) {
-    // TODO: validate user and seller from jwt ids first, also get store id to add that in trash folder directory
     const product = await this.prisma.product.findUnique({ where: { id }, select: { video: true, images: true } });
     if (!product) {
       throw new BadRequestException("No Product found against the provided id to delete");
@@ -225,14 +227,14 @@ export class ProductService {
     const trashImages = product.images.map((image) => `${trashFolder}/image_${image}`);
 
     try {
-      await this.s3Service.moveFile(product.video, trashVideo);
+      if (product.video) await this.s3Service.moveFile(product.video, trashVideo);
     } catch (err) {
       throw new InternalServerErrorException(`Couldn't delete video from server: ${err?.message}`);
     }
     try {
       await Promise.all(product.images.map((image, i) => this.s3Service.moveFile(image, trashImages[i])));
     } catch (err) {
-      await this.s3Service.moveFile(trashVideo, product.video);
+      if (product.video) await this.s3Service.moveFile(trashVideo, product.video);
       throw new InternalServerErrorException(`Couldn't delete images from server: ${err?.message}`);
     }
 
@@ -243,7 +245,7 @@ export class ProductService {
       return deletedProduct;
     } catch (err) {
       try {
-        await this.s3Service.moveFile(trashVideo, product.video);
+        if (product.video) await this.s3Service.moveFile(trashVideo, product.video);
         await Promise.all(product.images.map((image, i) => this.s3Service.moveFile(trashImages[i], image)));
       } catch (err) {
         console.log(`Rollback Failed: ${err?.message}`);
