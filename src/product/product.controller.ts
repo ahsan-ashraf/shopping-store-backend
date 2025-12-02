@@ -30,8 +30,7 @@ export class ProductController {
         saleExpiresAt: { type: "string", format: "date-time" },
         images: { type: "string", format: "binary" },
         video: { type: "string", format: "binary" }
-      },
-      required: ["stock", "title", "description", "brand", "tags", "returnPolicy", "warranty", "price", "images"]
+      }
     }
   })
   @UseInterceptors(
@@ -57,7 +56,7 @@ export class ProductController {
   @Patch(":productId")
   @ApiConsumes("multipart/form-data")
   @ApiBody({
-    description: "Update a product with optional images/video",
+    description: "Update product with images and video",
     schema: {
       type: "object",
       properties: {
@@ -70,14 +69,13 @@ export class ProductController {
         tags: { type: "array", items: { type: "string" } },
         returnPolicy: { type: "boolean" },
         warranty: { type: "boolean" },
-        rating: { type: "number" },
         price: { type: "number" },
         salePrice: { type: "number" },
         saleExpiresAt: { type: "string", format: "date-time" },
         images: { type: "string", format: "binary" },
         video: { type: "string", format: "binary" }
       },
-      required: []
+      required: ["stock", "title", "description", "brand", "tags", "returnPolicy", "warranty", "price", "images"]
     }
   })
   @UseInterceptors(

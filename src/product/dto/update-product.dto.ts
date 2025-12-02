@@ -1,84 +1,117 @@
-import { IsString, IsNotEmpty, IsNumber, IsArray, ArrayNotEmpty, ArrayUnique, IsOptional, IsBoolean, IsPositive, Min, IsDate, IsUUID, Length } from "class-validator";
+import { IsString, IsNotEmpty, IsNumber, IsArray, ArrayNotEmpty, ArrayUnique, IsOptional, IsBoolean, IsPositive, Min, IsDate, Length } from "class-validator";
 import { Transform, Type } from "class-transformer";
 
 export class UpdateProductDto {
-  @IsNumber()
   @Min(0)
-  @Transform(({ value }) => Number(value))
+  @Type(() => Number)
+  @IsNumber()
   @IsOptional()
-  stock?: number;
+  stock: number;
 
   @IsString()
   @IsNotEmpty()
   @Length(5, 100)
   @IsOptional()
-  title?: string;
+  title: string;
 
   @IsString()
   @IsNotEmpty()
   @Length(100, 2000)
   @IsOptional()
-  description?: string;
+  description: string;
 
   @IsString()
   @IsNotEmpty()
   @Length(5, 30)
-  @IsOptional()
-  brand?: string;
+  brand: string;
 
   @IsArray()
-  @ArrayNotEmpty()
+  @Type(() => String)
+  @IsOptional()
   @ArrayUnique()
   @IsString({ each: true })
-  @Transform(({ value }) => (typeof value === "string" ? JSON.parse(value) : value))
-  @IsOptional()
+  @Transform(({ value }) => {
+    if (!value) return undefined;
+    if (Array.isArray(value)) return value;
+    try {
+      return JSON.parse(value); // support JSON format
+    } catch {
+      return [value]; // convert single values to array
+    }
+  })
   color?: string[];
 
   @IsArray()
-  @ArrayNotEmpty()
+  @Type(() => String)
+  @IsOptional()
   @ArrayUnique()
   @IsString({ each: true })
-  @Transform(({ value }) => (typeof value === "string" ? JSON.parse(value) : value))
-  @IsOptional()
+  @Transform(({ value }) => {
+    if (!value) return undefined;
+    if (Array.isArray(value)) return value;
+    try {
+      return JSON.parse(value); // support JSON format
+    } catch {
+      return [value]; // convert single values to array
+    }
+  })
   size?: string[];
 
   @IsArray()
+  @Type(() => String)
+  @ArrayNotEmpty()
   @ArrayUnique()
   @IsString({ each: true })
-  @Transform(({ value }) => (value ? (typeof value === "string" ? JSON.parse(value) : value) : []))
-  @IsOptional()
-  tags?: string[];
+  @Transform(({ value }) => {
+    if (!value) return [];
+    if (Array.isArray(value)) return value;
+    try {
+      return JSON.parse(value); // support JSON format
+    } catch {
+      return [value]; // convert single values to array
+    }
+  })
+  tags: string[];
 
   @IsBoolean()
-  @Transform(({ value }) => value === "true")
-  @IsOptional()
-  returnPolicy?: boolean;
+  @Transform(({ value }) => {
+    if (value === "true" || value === "1") return true;
+    if (value === "false" || value === "0") return false;
+    return value;
+  })
+  returnPolicy: boolean;
 
   @IsBoolean()
-  @Transform(({ value }) => value === "true")
-  @IsOptional()
-  warranty?: boolean;
+  @Transform(({ value }) => {
+    if (value === "true" || value === "1") return true;
+    if (value === "false" || value === "0") return false;
+    return value;
+  })
+  warranty: boolean;
 
-  @IsNumber()
-  @Min(0)
-  @Transform(({ value }) => Number(value))
-  @IsOptional()
-  rating?: number;
-
-  @IsNumber()
   @IsPositive()
-  @Transform(({ value }) => Number(value))
-  @IsOptional()
-  price?: number;
+  @Type(() => Number)
+  @IsNumber()
+  price: number;
 
   @IsOptional()
-  @IsNumber()
   @Min(0)
-  @Transform(({ value }) => (value !== undefined ? Number(value) : undefined))
+  @Type(() => Number)
+  @IsNumber()
   salePrice?: number;
 
   @IsOptional()
   @IsDate()
   @Type(() => Date)
+  @IsOptional()
+  @IsDate()
+  @Type(() => Date)
+  @IsOptional()
+  @IsDate()
+  @Type(() => Date)
+  @Transform(({ value }) => {
+    if (!value || value === "" || value === null) return undefined;
+    return value;
+  })
   saleExpiresAt?: Date;
 }
