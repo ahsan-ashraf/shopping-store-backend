@@ -2,6 +2,7 @@ import { ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { AppModule } from "./app.module";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+import cookieParser from "cookie-parser"; // default import
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -13,6 +14,7 @@ async function bootstrap() {
       transform: true // transforms strings proper types (Date, number, etc)
     })
   );
+  app.use(cookieParser()); // <-- enable cookie parsing
 
   // swagger configuration
   const swaggerConfig = new DocumentBuilder().setTitle("Shopping Store APIs").setDescription("API Documentation for Shopping Store").setVersion("1.0").addTag("Shopping Store").build();

@@ -16,16 +16,17 @@ enum Role {
 }
 
 enum Gender {
-  Male @map("male")
+  Male   @map("male")
   Female @map("female")
-  Other @map("other")
+  Other  @map("other")
 }
 
 enum UserStatus {
   PendingApproval @map("pendingApproval")
-  Active @map("active")
-  Blocked @map("blocked")
-	@@map("Status")
+  Active          @map("active")
+  Blocked         @map("blocked")
+
+  @@map("Status")
 }
 
 enum paymentMethod {
@@ -51,21 +52,31 @@ enum ReturnRequestStatus {
   Returned
 }
 
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId    String
+  createdAt DateTime @default(now())
+  expiresAt DateTime
+}
+
 model User {
-  id        String    @id @default(uuid())
-  name      String
-  email     String    @unique
-  dob       DateTime
-  password  String
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
-  status    UserStatus    @default(PendingApproval)
-  role      Role
-  gender    Gender
-  buyer     Buyer?
-  seller    Seller?
-  rider     Rider?
-  addresses Address[]
+  id            String         @id @default(uuid())
+  name          String
+  email         String         @unique
+  dob           DateTime
+  password      String
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  status        UserStatus     @default(PendingApproval)
+  role          Role
+  gender        Gender
+  buyer         Buyer?
+  seller        Seller?
+  rider         Rider?
+  addresses     Address[]
+  refreshTokens RefreshToken[]
 }
 
 model Buyer {
@@ -187,7 +198,7 @@ model Product {
   orderItems     OrderItem[]
   returnRequests ReturnRequest[]
 
-  @@index([title])  // TODO: two stores could have products with same title, so remove this index
+  @@index([title]) // TODO: two stores could have products with same title, so remove this index
   @@index([storeId])
 }
 
@@ -249,7 +260,7 @@ model Cart {
 model Order {
   id                String          @id @default(uuid())
   buyer             Buyer?          @relation(fields: [buyerId], references: [id], onDelete: SetNull)
-  buyerId           String?// optional for anonymous buyers
+  buyerId           String? // optional for anonymous buyers
   deliveryAddress   Address         @relation(fields: [deliveryAddressId], references: [id])
   deliveryAddressId String
   paymentMethod     paymentMethod
@@ -284,17 +295,17 @@ model OrderItem {
 }
 
 model ReturnRequest {
-  id             String   @id @default(uuid())
-  buyer          Buyer?   @relation(fields: [buyerId], references: [id], onDelete: SetNull)
+  id             String              @id @default(uuid())
+  buyer          Buyer?              @relation(fields: [buyerId], references: [id], onDelete: SetNull)
   buyerId        String?
-  product        Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  product        Product?            @relation(fields: [productId], references: [id], onDelete: SetNull)
   productId      String?
-  rider          Rider?   @relation(fields: [riderId], references: [id], onDelete: SetNull)
+  rider          Rider?              @relation(fields: [riderId], references: [id], onDelete: SetNull)
   riderId        String?
-  order          Order    @relation(fields: [orderId], references: [id])
+  order          Order               @relation(fields: [orderId], references: [id])
   orderId        String
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
   reason         String
   images         String[]
   status         ReturnRequestStatus

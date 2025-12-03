@@ -6,11 +6,12 @@ import { S3Service } from "./s3/s3.service";
 import { S3Controller } from "./s3/s3.controller";
 import { StoreModule } from "./store/store.module";
 import { S3Module } from "./s3/s3.module";
-import { ProductModule } from './product/product.module';
-import { OrderModule } from './order/order.module';
+import { ProductModule } from "./product/product.module";
+import { OrderModule } from "./order/order.module";
+import { AuthModule } from "./auth/auth.module";
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), UserModule, AddressModule, StoreModule, S3Module, ProductModule, OrderModule],
+  imports: [ConfigModule.forRoot({ isGlobal: true }), AuthModule, UserModule, AddressModule, StoreModule, S3Module, ProductModule, OrderModule],
   controllers: [S3Controller],
   providers: [S3Service]
 })
