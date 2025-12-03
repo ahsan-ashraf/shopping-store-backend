@@ -36,9 +36,9 @@ export class CreateUserDto {
   @Type(() => Date)
   dob: Date;
 
-  @ApiProperty({ description: "Role of the user", enum: Role })
-  @IsEnum(Role)
-  role: Role;
+  // @ApiProperty({ description: "Role of the user", enum: Role })
+  // @IsEnum(Role)
+  // role: Role;
 
   @ApiProperty({ description: "Gender of the user", enum: Gender })
   @IsEnum(Gender)
@@ -52,7 +52,7 @@ export class CreateUserDto {
   @Type(() => CreateUserAddressDto)
   addresses: CreateUserAddressDto[];
 
-  @ApiProperty({ description: "Whether the user active or not" })
-  @IsEnum(UserStatus)
-  status: UserStatus;
+  // @ApiProperty({ description: "Whether the user active or not" })
+  // @IsEnum(UserStatus)
+  // status: UserStatus;
 }

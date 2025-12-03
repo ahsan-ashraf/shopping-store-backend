@@ -1,12 +1,11 @@
 import { Body, Controller, HttpCode, Post, Req, Res } from "@nestjs/common";
 import { AuthService } from "./auth.service";
-import { CreateUserAdminDto } from "./dto/request/create-user-admin.dto";
 import { Response, Request } from "express";
 import { CreateUserSellerDto } from "./dto/request/create-user-seller.dto";
 import { CreateUserBuyerDto } from "./dto/request/create-user-buyer.dto";
 import { CreateUserRiderDto } from "./dto/request/create-user-rider.dto";
 import { LoginRequestDto } from "./dto/request/login-request-dto";
-import { json } from "stream/consumers";
+import { CreateUserAdminDto } from "./dto/request/create-user-admin.dto";
 
 @Controller("auth")
 export class AuthController {
@@ -62,7 +61,7 @@ export class AuthController {
 
   @Post("/login")
   @HttpCode(200)
-  async login(dto: LoginRequestDto, @Res({ passthrough: true }) res: Response) {
+  async login(@Body() dto: LoginRequestDto, @Res({ passthrough: true }) res: Response) {
     const { accessToken, refreshToken, user } = await this.authService.loginUser(dto);
     this.setResponseCookie(res, accessToken, refreshToken);
     return user;

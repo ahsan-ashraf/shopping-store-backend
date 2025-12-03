@@ -1,6 +1,5 @@
-import { ConflictException, Injectable, InternalServerErrorException, UnauthorizedException } from "@nestjs/common";
+import { Body, ConflictException, Injectable, InternalServerErrorException, UnauthorizedException } from "@nestjs/common";
 import * as bcrypt from "bcrypt";
-import { CreateUserAdminDto } from "./dto/request/create-user-admin.dto";
 import { PrismaService } from "prisma/prisma.service";
 import { PrismaClientKnownRequestError } from "generated/prisma/internal/prismaNamespace";
 import { CreateUserBuyerDto } from "./dto/request/create-user-buyer.dto";
@@ -9,6 +8,8 @@ import { CreateUserRiderDto } from "./dto/request/create-user-rider.dto";
 import { LoginRequestDto } from "./dto/request/login-request-dto";
 import { LoginResponseDto } from "./dto/response/login-response.dto";
 import { JwtService } from "@nestjs/jwt";
+import { CreateUserAdminDto } from "./dto/request/create-user-admin.dto";
+import { Role, UserStatus } from "src/types";
 
 @Injectable()
 export class AuthService {
@@ -33,8 +34,20 @@ export class AuthService {
         return 7 * 24 * 60 * 60_000; // default 7 days
     }
   }
-  private $generateTokens(user: any) {
-    const payload = { sub: user.id, email: user.email, role: user.role };
+
+  private $getPayload(user: any): object {
+    return {
+      sub: user.id,
+      email: user.email,
+      role: user.role
+    };
+  }
+  private async $issueTokensForUser(userId: string, payload: object) {
+    const tokens = this.$generateTokens(payload);
+    await this.$saveRefreshToken(userId, tokens.refreshToken, "7d");
+    return tokens;
+  }
+  private $generateTokens(payload: object) {
     // const accessToken = this.jwt.sign(payload, { expiresIn: this.ACCESS_TOKEN_EXPIRES_IN as string });
     const accessToken = this.jwt.sign(payload, { expiresIn: "1h" });
     const refreshToken = this.jwt.sign(payload, { expiresIn: "7d" });
@@ -87,15 +100,15 @@ export class AuthService {
         email: dto.email,
         password: hashedPassword,
         dob: dto.dob,
-        role: dto.role,
         gender: dto.gender,
-        status: dto.status,
+        role: Role.Admin,
+        status: UserStatus.PendingApproval,
         addresses: { create: dto.addresses }
       },
       { addresses: true }
     );
 
-    const tokens = this.$generateTokens(userData);
+    const tokens = await this.$issueTokensForUser(userData.id, this.$getPayload(userData));
     return {
       ...tokens,
       user: userData
@@ -110,8 +123,8 @@ export class AuthService {
         password: hashedPassword,
         gender: dto.gender,
         dob: dto.dob,
-        role: dto.role,
-        status: dto.status,
+        role: Role.Buyer,
+        status: UserStatus.PendingApproval,
         buyer: {
           create: {
             walletAmount: dto.walletAmount
@@ -127,7 +140,7 @@ export class AuthService {
       }
     );
 
-    const tokens = this.$generateTokens(userData);
+    const tokens = await this.$issueTokensForUser(userData.id, this.$getPayload(userData));
     return {
       ...tokens,
       user: userData
@@ -142,8 +155,8 @@ export class AuthService {
         password: hashedPassword,
         gender: dto.gender,
         dob: dto.dob,
-        role: dto.role,
-        status: dto.status,
+        role: Role.Seller,
+        status: UserStatus.PendingApproval,
         seller: {
           create: {
             businessId: dto.businessId,
@@ -157,7 +170,7 @@ export class AuthService {
       { addresses: true, seller: true }
     );
 
-    const tokens = this.$generateTokens(userData);
+    const tokens = await this.$issueTokensForUser(userData.id, this.$getPayload(userData));
     return {
       ...tokens,
       user: userData
@@ -172,8 +185,8 @@ export class AuthService {
         password: hashedPassword,
         gender: dto.gender,
         dob: dto.dob,
-        role: dto.role,
-        status: dto.status,
+        role: Role.Rider,
+        status: UserStatus.PendingApproval,
         rider: {
           create: {
             vehicleRegNo: dto.vehicleRegNo,
@@ -187,7 +200,7 @@ export class AuthService {
       { addresses: true, rider: true }
     );
 
-    const tokens = this.$generateTokens(userData);
+    const tokens = await this.$issueTokensForUser(userData.id, this.$getPayload(userData));
     return {
       ...tokens,
       user: userData
@@ -206,7 +219,7 @@ export class AuthService {
     }
 
     const { password, ...userData } = user;
-    const tokens = this.$generateTokens(userData);
+    const tokens = await this.$issueTokensForUser(userData.id, this.$getPayload(userData));
 
     return {
       ...tokens,
@@ -234,7 +247,7 @@ export class AuthService {
       if (!user) {
         throw new UnauthorizedException("User not found");
       }
-      await this.$revokeRefreshToken(refreshToken);
+      await this.$revokeRefreshToken(tokenRecord.id);
     } catch (err) {
       if (err.name === "TokenExpiredError") {
         throw new UnauthorizedException("Token expired");
@@ -270,10 +283,8 @@ export class AuthService {
     }
 
     await this.$revokeAllRefreshTokens(user.id);
-    const tokens = this.$generateTokens(user);
-    await this.$saveRefreshToken(user.id, tokens.refreshToken, "7d");
-
     const { password, ...userData } = user;
+    const tokens = await this.$issueTokensForUser(userData.id, this.$getPayload(userData));
 
     return { ...tokens, user: userData };
   }

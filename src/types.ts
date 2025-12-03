@@ -13,9 +13,9 @@ export enum Gender {
 }
 
 export enum UserStatus {
-  PendingApproval = "pendingApproval",
-  Active = "active",
-  Blocked = "blocked"
+  PendingApproval = "PendingApproval",
+  Active = "Active",
+  Blocked = "Blocked"
 }
 
 export enum PaymentMethod {

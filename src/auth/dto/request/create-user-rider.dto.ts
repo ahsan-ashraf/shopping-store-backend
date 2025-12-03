@@ -1,8 +1,8 @@
 import { IsPhoneNumber, IsString, Length, min } from "class-validator";
-import { CreateUserAdminDto } from "./create-user-admin.dto";
+import { CreateUserDto } from "./create-user.dto";
 import { ApiProperty } from "@nestjs/swagger";
 
-export class CreateUserRiderDto extends CreateUserAdminDto {
+export class CreateUserRiderDto extends CreateUserDto {
   @ApiProperty({
     description: "Vehice Registration No",
     minLength: 7,
