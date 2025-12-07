@@ -109,7 +109,8 @@ async function main() {
         data: {
           userId: user.id,
           vehicleRegNo: faker.vehicle.vin(),
-          companyPhone: faker.phone.number()
+          companyPhone: faker.phone.number(),
+          amountToRecieve: 0
         }
       });
       return { id: rider.id, userId: user.id };
@@ -283,7 +284,6 @@ async function main() {
           deliveryAddressId: buyerAddress.id,
           paymentMethod: method,
           paymentStatus,
-          totalPrice: 0, // temporary, updated after items
           status,
           riderId
         }
@@ -311,11 +311,6 @@ async function main() {
           }
         });
       }
-
-      await prisma.order.update({
-        where: { id: order.id },
-        data: { totalPrice }
-      });
 
       if (status === OrderStatus.Delivered) {
         deliveredOrdersForPossibleReturns.push({

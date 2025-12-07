@@ -44,6 +44,7 @@ enum OrderStatus {
   OutForDeliver
   Delivered
   FailedToDeliver
+  Canceled
 }
 
 enum ReturnRequestStatus {
@@ -101,13 +102,14 @@ model Seller {
 }
 
 model Rider {
-  id             String          @id @default(uuid())
-  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  userId         String          @unique
-  vehicleRegNo   String
-  companyPhone   String
-  orders         Order[]
-  returnRequests ReturnRequest[]
+  id              String          @id @default(uuid())
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId          String          @unique
+  vehicleRegNo    String
+  companyPhone    String
+  amountToRecieve Decimal
+  orders          Order[]
+  returnRequests  ReturnRequest[]
 }
 
 model Address {
@@ -150,6 +152,7 @@ model Store {
   facebook          String?
   instagram         String?
   tiktok            String?
+  status            UserStatus         @default(PendingApproval)
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   storePerformances StorePerformance[]
@@ -260,12 +263,11 @@ model Cart {
 model Order {
   id                String          @id @default(uuid())
   buyer             Buyer?          @relation(fields: [buyerId], references: [id], onDelete: SetNull)
-  buyerId           String? // optional for anonymous buyers
+  buyerId           String? // optional for anonymous buyers and/or when buyer deleted but data is here for audit
   deliveryAddress   Address         @relation(fields: [deliveryAddressId], references: [id])
   deliveryAddressId String
   paymentMethod     paymentMethod
   paymentStatus     PaymentStatus
-  totalPrice        Decimal
   status            OrderStatus     @default(Processing)
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt

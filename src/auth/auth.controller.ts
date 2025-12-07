@@ -9,7 +9,6 @@ import { CreateUserAdminDto } from "./dto/request/create-user-admin.dto";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard";
 import { JwtRefreshGuard } from "./guards/jwt-refresh.guard";
 import { RolesGuard } from "./guards/roles.guard";
-import { Roles } from "./decorators/roles.decorator";
 
 @Controller("auth")
 export class AuthController {

@@ -27,7 +27,6 @@ export class OrderService {
           deliveryAddressId: dto.deliveryAddressId,
           paymentMethod: dto.paymentMethod,
           paymentStatus: dto.paymentStatus,
-          totalPrice: dto.totalPrice,
           orderItems: {
             create: dto.orderItems.map((item) => ({
               productId: item.productId,

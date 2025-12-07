@@ -9,9 +9,10 @@ import { S3Module } from "./s3/s3.module";
 import { ProductModule } from "./product/product.module";
 import { OrderModule } from "./order/order.module";
 import { AuthModule } from "./auth/auth.module";
+import { AdminDashboardModule } from './admin-dashboard/admin-dashboard.module';
 
 @Module({
-  imports: [ConfigModule.forRoot({ isGlobal: true }), AuthModule, UserModule, AddressModule, StoreModule, S3Module, ProductModule, OrderModule],
+  imports: [ConfigModule.forRoot({ isGlobal: true }), AuthModule, UserModule, AddressModule, StoreModule, S3Module, ProductModule, OrderModule, AdminDashboardModule],
   controllers: [S3Controller],
   providers: [S3Service]
 })

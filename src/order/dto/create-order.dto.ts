@@ -18,11 +18,6 @@ export class CreateOrderDto {
   @IsEnum(PaymentStatus)
   paymentStatus: PaymentStatus;
 
-  @ApiProperty({ description: "Total price" })
-  @IsNumber()
-  @IsPositive()
-  totalPrice: number;
-
   @ApiProperty({ description: "Items in order", type: CreateOrderItemDto, isArray: true })
   @ValidateNested({ each: true })
   @Type(() => CreateOrderItemDto)
