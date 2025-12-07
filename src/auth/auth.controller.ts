@@ -8,6 +8,8 @@ import { LoginRequestDto } from "./dto/request/login-request-dto";
 import { CreateUserAdminDto } from "./dto/request/create-user-admin.dto";
 import { JwtAuthGuard } from "./guards/jwt-auth.guard";
 import { JwtRefreshGuard } from "./guards/jwt-refresh.guard";
+import { RolesGuard } from "./guards/roles.guard";
+import { Roles } from "./decorators/roles.decorator";
 
 @Controller("auth")
 export class AuthController {
@@ -69,7 +71,7 @@ export class AuthController {
     return user;
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Post("/logout")
   @HttpCode(200)
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {

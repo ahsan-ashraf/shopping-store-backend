@@ -10,6 +10,7 @@ import { LoginResponseDto } from "./dto/response/login-response.dto";
 import { JwtService } from "@nestjs/jwt";
 import { CreateUserAdminDto } from "./dto/request/create-user-admin.dto";
 import { Role, UserStatus } from "src/types";
+import { Roles } from "./decorators/roles.decorator";
 
 @Injectable()
 export class AuthService {
