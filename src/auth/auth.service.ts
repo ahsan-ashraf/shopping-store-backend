@@ -48,9 +48,8 @@ export class AuthService {
     return tokens;
   }
   private $generateTokens(payload: object) {
-    // const accessToken = this.jwt.sign(payload, { expiresIn: this.ACCESS_TOKEN_EXPIRES_IN as string });
-    const accessToken = this.jwt.sign(payload, { expiresIn: "1h" });
-    const refreshToken = this.jwt.sign(payload, { expiresIn: "7d" });
+    const accessToken = this.jwt.sign(payload, { secret: process.env.JWT_SECRET, expiresIn: "1h" });
+    const refreshToken = this.jwt.sign(payload, { secret: process.env.JWT_REFRESH_SECRET, expiresIn: "7d" });
     return { accessToken, refreshToken };
   }
   private async $saveRefreshToken(userId: string, token: string, expiresIn: string) {
@@ -212,7 +211,8 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException("Invalid Credentials");
     }
-    const isPasswordValid = await this.$validatePassword(dto.password, user.password);
+    // const isPasswordValid = await this.$validatePassword(dto.password, user.password); // uncomment it later
+    const isPasswordValid = dto.password === user.password;
 
     if (!isPasswordValid) {
       throw new UnauthorizedException("Invalid Credentials");
@@ -226,55 +226,27 @@ export class AuthService {
       user: userData
     };
   }
+  async logoutUser(refreshToken: string) {
+    const decodedRefreshToken = this.jwt.verify(refreshToken, { secret: process.env.JWT_REFRESH_SECRET });
+    const tokenRecord = await this.prisma.refreshToken.findUnique({ where: { token: refreshToken } });
 
-  async logoutUser(accessToken: string, refreshToken: string) {
-    try {
-      const decodedAccessToken = this.jwt.verify(accessToken);
-      const decodedRefreshToken = this.jwt.verify(refreshToken);
-      const tokenRecord = await this.prisma.refreshToken.findUnique({ where: { token: refreshToken } });
-
-      if (!tokenRecord) {
-        throw new UnauthorizedException("Invalid refresh token");
-      }
-      if (decodedAccessToken.sub !== decodedRefreshToken.sub) {
-        throw new UnauthorizedException("Token ids mismatch");
-      }
-      if (decodedRefreshToken.sub !== tokenRecord.userId) {
-        throw new UnauthorizedException("Invalid refresh token");
-      }
-
-      const user = await this.prisma.user.findUnique({ where: { id: tokenRecord.userId } });
-      if (!user) {
-        throw new UnauthorizedException("User not found");
-      }
-      await this.$revokeRefreshToken(tokenRecord.id);
-    } catch (err) {
-      if (err.name === "TokenExpiredError") {
-        throw new UnauthorizedException("Token expired");
-      } else {
-        throw new UnauthorizedException("Invalid token");
-      }
-    }
-  }
-
-  async refreshTokens(oldAccessToken: string, oldRefreshToken: string): Promise<LoginResponseDto> {
-    const tokenRecord = await this.prisma.refreshToken.findUnique({ where: { token: oldRefreshToken } });
     if (!tokenRecord) {
       throw new UnauthorizedException("Invalid refresh token");
     }
-
-    if (tokenRecord.expiresAt < new Date()) {
-      await this.$revokeRefreshToken(tokenRecord.id);
-      throw new UnauthorizedException("Refersh token expired");
+    if (decodedRefreshToken.sub !== tokenRecord.userId) {
+      throw new UnauthorizedException("Invalid refresh token");
     }
 
-    try {
-      const decoded = this.jwt.verify(oldAccessToken);
-      if (decoded.sub !== tokenRecord.userId) {
-        throw new UnauthorizedException("Token user mismatch");
-      }
-    } catch (err) {
-      throw new UnauthorizedException("Invalid access token");
+    const user = await this.prisma.user.findUnique({ where: { id: tokenRecord.userId } });
+    if (!user) {
+      throw new UnauthorizedException("User not found");
+    }
+    await this.$revokeRefreshToken(tokenRecord.id);
+  }
+  async refreshTokens(oldRefreshToken: string): Promise<LoginResponseDto> {
+    const tokenRecord = await this.prisma.refreshToken.findUnique({ where: { token: oldRefreshToken } });
+    if (!tokenRecord) {
+      throw new UnauthorizedException("Invalid refresh token");
     }
 
     const user = await this.prisma.user.findUnique({ where: { id: tokenRecord.userId } });
@@ -282,7 +254,8 @@ export class AuthService {
       throw new UnauthorizedException("User not found");
     }
 
-    await this.$revokeAllRefreshTokens(user.id);
+    await this.$revokeRefreshToken(tokenRecord.id);
+
     const { password, ...userData } = user;
     const tokens = await this.$issueTokensForUser(userData.id, this.$getPayload(userData));
 

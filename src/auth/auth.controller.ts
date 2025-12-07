@@ -1,4 +1,4 @@
-import { Body, Controller, HttpCode, Post, Req, Res } from "@nestjs/common";
+import { BadRequestException, Body, Controller, HttpCode, Post, Req, Res, UseGuards } from "@nestjs/common";
 import { AuthService } from "./auth.service";
 import { Response, Request } from "express";
 import { CreateUserSellerDto } from "./dto/request/create-user-seller.dto";
@@ -6,6 +6,8 @@ import { CreateUserBuyerDto } from "./dto/request/create-user-buyer.dto";
 import { CreateUserRiderDto } from "./dto/request/create-user-rider.dto";
 import { LoginRequestDto } from "./dto/request/login-request-dto";
 import { CreateUserAdminDto } from "./dto/request/create-user-admin.dto";
+import { JwtAuthGuard } from "./guards/jwt-auth.guard";
+import { JwtRefreshGuard } from "./guards/jwt-refresh.guard";
 
 @Controller("auth")
 export class AuthController {
@@ -67,17 +69,13 @@ export class AuthController {
     return user;
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post("/logout")
   @HttpCode(200)
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const accessToken = req.cookies["accessToken"];
     const refreshToken = req.cookies["refreshToken"];
-
-    if (!accessToken || !refreshToken) {
-      return res.status(400).json({ message: "Tokens not found in cookies" });
-    }
-
-    await this.authService.logoutUser(accessToken, refreshToken);
+    if (!refreshToken) return new BadRequestException("Refresh Token not found");
+    await this.authService.logoutUser(refreshToken);
 
     res.clearCookie("accessToken");
     res.clearCookie("refreshToken");
@@ -85,6 +83,7 @@ export class AuthController {
     return { message: "Logged out successfully" };
   }
 
+  @UseGuards(JwtRefreshGuard)
   @Post("/refresh-tokens")
   @HttpCode(200)
   async refreshTokens(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
@@ -95,7 +94,7 @@ export class AuthController {
       return res.status(400).json({ message: "Tokens not found in cookies" });
     }
 
-    const { accessToken, refreshToken, user } = await this.authService.refreshTokens(oldAccessToken, oldRefreshToken);
+    const { accessToken, refreshToken, user } = await this.authService.refreshTokens(oldRefreshToken);
 
     this.setResponseCookie(res, accessToken, refreshToken);
 
