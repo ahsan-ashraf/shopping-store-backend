@@ -1,8 +1,11 @@
-import { BadRequestException, Injectable, InternalServerErrorException } from "@nestjs/common";
+import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "prisma/prisma.service";
 import { S3Service } from "src/s3/s3.service";
-import { CreateStoreDto } from "./dto/create-store.dto";
-import { UpdateStoreDto } from "./dto/update-store.dto";
+import { CreateStoreDto } from "./dto/request/create-store.dto";
+import { UpdateStoreDto } from "./dto/request/update-store.dto";
+import { Role } from "@prisma/client";
+import { UpdateStoreStatusDto } from "./dto/request/update-store-status.dto";
+import { Utils } from "src/utils/utils";
 
 @Injectable()
 export class StoreService {
@@ -11,14 +14,38 @@ export class StoreService {
     private readonly s3Service: S3Service
   ) {}
 
-  async findOne(storeId: string) {
-    // validate users first via ids in jwt tokens
-    const store = await this.prisma.store.findUnique({ where: { id: storeId } });
+  private async $isValidActor(payload: any) {
+    const valid = await Utils.isValidActor(payload.actorId, payload.role, this.prisma);
+    if (!valid) {
+      throw new NotFoundException(`${payload.role} not found or invalid`);
+    }
+  }
+
+  async findOne(storeId: string, payload: any) {
+    const store = await this.prisma.store.findUnique({
+      where: {
+        id: storeId,
+        sellerId: payload.actorId,
+        seller: {
+          userId: payload.sub
+        }
+      }
+    });
+
+    if (!store) {
+      throw new NotFoundException("Store not found");
+    }
+
     return store;
   }
-  // Business logic isn't implemented yet, as we're not checking whether the seller id is valid/exists or and
-  // whether this seller has premium acc or hit max store limits and we are also not checking ids from tokens yet
-  async create(dto: CreateStoreDto, iconImage: Express.Multer.File, bannerImage: Express.Multer.File) {
+  async getAllStores(payload: any) {
+    const stores = await this.prisma.store.findMany({ where: { sellerId: payload.actorId } });
+    return stores;
+  }
+  // Business logic isn't implemented yet, whether this seller has premium acc or hit max store limits
+  async create(dto: CreateStoreDto, payload: any, iconImage: Express.Multer.File, bannerImage: Express.Multer.File) {
+    this.$isValidActor(payload);
+
     const filesToUpload = [iconImage, bannerImage];
 
     let uploadedFiles;
@@ -31,7 +58,7 @@ export class StoreService {
     try {
       const store = this.prisma.store.create({
         data: {
-          sellerId: dto.sellerId,
+          sellerId: payload.actorId,
           bannerImageUrl: uploadedFiles[1].url,
           bannerImageName: uploadedFiles[1].key,
           iconImageUrl: uploadedFiles[0].url,
@@ -53,12 +80,10 @@ export class StoreService {
     }
   }
 
-  async update(storeId: string, dto: UpdateStoreDto, iconImage: Express.Multer.File | null, bannerImage: Express.Multer.File | null) {
-    // extract seller id and user id from jwt token
-    // check if the seller id is valid
-    // check if store id is valid and belongs to the this user seller who is requesting to update
+  async update(storeId: string, dto: UpdateStoreDto, payload: any, iconImage: Express.Multer.File | null, bannerImage: Express.Multer.File | null) {
+    this.$isValidActor(payload);
 
-    const existingStore = await this.prisma.store.findUnique({ where: { id: storeId }, select: { iconImageName: true, bannerImageName: true } });
+    const existingStore = await this.prisma.store.findUnique({ where: { id: storeId, sellerId: payload.actorId }, select: { iconImageName: true, bannerImageName: true } });
     if (!existingStore) {
       throw new BadRequestException("Store not found or Invalid store id passed");
     }
@@ -92,7 +117,8 @@ export class StoreService {
           youtube: true,
           facebook: true,
           instagram: true,
-          tiktok: true
+          tiktok: true,
+          status: true
         }
       });
       return updatedStore;
@@ -101,13 +127,42 @@ export class StoreService {
     }
   }
 
-  async deleteStore(storeId: string) {
-    // get seller id and user id from jwt tokens to validate user and seller
-    // validate store id i.e. it should belongs to the valid seller
-    // delete store images from s3 and then delete store
-    // if store deletion failed then re-upload the deleted images to s3
+  async updateStatus(storeId: string, dto: UpdateStoreStatusDto, payload: any) {
+    this.$isValidActor(payload);
+    const store = await this.prisma.store.findFirst({ where: { id: storeId, sellerId: payload.actorId } });
+    if (!store) {
+      throw new BadRequestException("Store not found or Invalid store id to update status");
+    }
 
-    const store = await this.prisma.store.findUnique({ where: { id: storeId }, select: { iconImageName: true, bannerImageName: true } });
+    try {
+      const updatedStore = await this.prisma.store.update({
+        where: { id: store.id },
+        data: { ...dto },
+        select: {
+          sellerId: true,
+          bannerImageUrl: true,
+          bannerImageName: true,
+          iconImageUrl: true,
+          iconImageName: true,
+          storeName: true,
+          description: true,
+          categoryId: true,
+          youtube: true,
+          facebook: true,
+          instagram: true,
+          tiktok: true,
+          status: true
+        }
+      });
+      return updatedStore;
+    } catch (err) {
+      throw new InternalServerErrorException("Failed to update store status");
+    }
+  }
+
+  async deleteStore(storeId: string, payload: any) {
+    this.$isValidActor(payload);
+    const store = await this.prisma.store.findUnique({ where: { id: storeId, sellerId: payload.actorId }, select: { iconImageName: true, bannerImageName: true } });
     if (!store) {
       throw new BadRequestException("Store not found to delete.");
     }

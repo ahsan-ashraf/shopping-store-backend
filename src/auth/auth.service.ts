@@ -1,4 +1,4 @@
-import { Body, ConflictException, Injectable, InternalServerErrorException, UnauthorizedException } from "@nestjs/common";
+import { BadRequestException, Body, ConflictException, Injectable, InternalServerErrorException, UnauthorizedException } from "@nestjs/common";
 import * as bcrypt from "bcrypt";
 import { PrismaService } from "prisma/prisma.service";
 import { PrismaClientKnownRequestError } from "generated/prisma/internal/prismaNamespace";
@@ -10,7 +10,7 @@ import { LoginResponseDto } from "./dto/response/login-response.dto";
 import { JwtService } from "@nestjs/jwt";
 import { CreateUserAdminDto } from "./dto/request/create-user-admin.dto";
 import { Role, UserStatus } from "src/types";
-import { Roles } from "./decorators/roles.decorator";
+import { Role as ActorRole } from "@prisma/client";
 
 @Injectable()
 export class AuthService {
@@ -36,14 +36,51 @@ export class AuthService {
     }
   }
 
-  private $getPayload(user: any): object {
+  private async $getActorId(userId: string, role: ActorRole): Promise<string> {
+    let actorId: string = "";
+    if (role === ActorRole.Buyer) {
+      const data = await this.prisma.user.findUnique({ where: { id: userId }, select: { buyer: { select: { id: true } } } });
+      if (!data?.buyer) {
+        throw new InternalServerErrorException("Buyer profile not found for this user.");
+      }
+      actorId = data!.buyer!.id;
+    } else if (role === ActorRole.Seller) {
+      const data = await this.prisma.user.findUnique({ where: { id: userId }, select: { seller: { select: { id: true } } } });
+      if (!data?.seller) {
+        throw new InternalServerErrorException("Seller profile not found for this user.");
+      }
+      actorId = data!.seller!.id;
+    } else if (role === ActorRole.Rider) {
+      const data = await this.prisma.user.findUnique({ where: { id: userId }, select: { rider: { select: { id: true } } } });
+      if (!data?.rider) {
+        throw new InternalServerErrorException("Rider profile not found for this user.");
+      }
+      actorId = data!.rider!.id;
+    } else if (role === ActorRole.Admin || role === ActorRole.SuperAdmin) {
+      const data = await this.prisma.user.findUnique({ where: { id: userId }, select: { id: true } });
+      if (!data?.id) {
+        throw new InternalServerErrorException("Admin/SuperAdmin profile not found for this user.");
+      }
+      actorId = data!.id;
+    } else {
+      throw new InternalServerErrorException("Unknown role on user.");
+    }
+    return actorId;
+  }
+  private async $getPayload(user: any): Promise<object> {
+    const sub = user.id;
+    const email = user.email;
+    const role = user.role;
+    const actorId = await this.$getActorId(sub, role);
+
     return {
-      sub: user.id,
-      email: user.email,
-      role: user.role
+      sub,
+      email,
+      role,
+      actorId
     };
   }
-  private async $issueTokensForUser(userId: string, payload: object) {
+  private async $issueTokensForUser(userId: string, payload: any) {
     const tokens = this.$generateTokens(payload);
     await this.$saveRefreshToken(userId, tokens.refreshToken, "7d");
     return tokens;
@@ -108,7 +145,8 @@ export class AuthService {
       { addresses: true }
     );
 
-    const tokens = await this.$issueTokensForUser(userData.id, this.$getPayload(userData));
+    const payload = await this.$getPayload(userData);
+    const tokens = await this.$issueTokensForUser(userData.id, payload);
     return {
       ...tokens,
       user: userData
@@ -140,7 +178,8 @@ export class AuthService {
       }
     );
 
-    const tokens = await this.$issueTokensForUser(userData.id, this.$getPayload(userData));
+    const payload = await this.$getPayload(userData);
+    const tokens = await this.$issueTokensForUser(userData.id, payload);
     return {
       ...tokens,
       user: userData
@@ -170,7 +209,8 @@ export class AuthService {
       { addresses: true, seller: true }
     );
 
-    const tokens = await this.$issueTokensForUser(userData.id, this.$getPayload(userData));
+    const payload = await this.$getPayload(userData);
+    const tokens = await this.$issueTokensForUser(userData.id, payload);
     return {
       ...tokens,
       user: userData
@@ -200,11 +240,10 @@ export class AuthService {
       { addresses: true, rider: true }
     );
 
-    const tokens = await this.$issueTokensForUser(userData.id, this.$getPayload(userData));
-    return {
-      ...tokens,
-      user: userData
-    };
+    const payload = await this.$getPayload(userData);
+    const tokens = await this.$issueTokensForUser(userData.id, payload);
+
+    return { ...tokens, user: userData };
   }
 
   async loginUser(dto: LoginRequestDto): Promise<LoginResponseDto> {
@@ -212,7 +251,7 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException("Invalid Credentials");
     }
-    // const isPasswordValid = await this.$validatePassword(dto.password, user.password); // uncomment it later
+    // const isPasswordValid = await this.$validatePassword(dto.password, user.password); // uncomment it later, for encrypted passwords
     const isPasswordValid = dto.password === user.password;
 
     if (!isPasswordValid) {
@@ -220,7 +259,8 @@ export class AuthService {
     }
 
     const { password, ...userData } = user;
-    const tokens = await this.$issueTokensForUser(userData.id, this.$getPayload(userData));
+    const payload = await this.$getPayload(userData);
+    const tokens = await this.$issueTokensForUser(userData.id, payload);
 
     return {
       ...tokens,
@@ -258,7 +298,8 @@ export class AuthService {
     await this.$revokeRefreshToken(tokenRecord.id);
 
     const { password, ...userData } = user;
-    const tokens = await this.$issueTokensForUser(userData.id, this.$getPayload(userData));
+    const payload = await this.$getPayload(userData);
+    const tokens = await this.$issueTokensForUser(userData.id, payload);
 
     return { ...tokens, user: userData };
   }

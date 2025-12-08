@@ -1,9 +1,6 @@
 import { IsNotEmpty, IsString, IsUrl, IsUUID, Length } from "class-validator";
 
 export class CreateStoreDto {
-  @IsUUID()
-  sellerId: string;
-
   @IsString()
   @IsNotEmpty()
   @Length(5, 30)

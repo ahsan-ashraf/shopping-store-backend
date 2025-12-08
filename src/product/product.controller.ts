@@ -1,14 +1,19 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, UploadedFiles, UseInterceptors } from "@nestjs/common";
+import { Controller, Get, Post, Body, Patch, Param, Delete, UploadedFiles, UseInterceptors, UseGuards, Req } from "@nestjs/common";
 import { ProductService } from "./product.service";
 import { CreateProductDto } from "./dto/create-product.dto";
 import { UpdateProductDto } from "./dto/update-product.dto";
 import { ApiBody, ApiConsumes } from "@nestjs/swagger";
 import { FileFieldsInterceptor } from "@nestjs/platform-express";
+import { JwtAuthGuard } from "src/auth/guards/jwt-auth.guard";
+import { RolesGuard } from "src/auth/guards/roles.guard";
+import { Roles } from "src/auth/decorators/roles.decorator";
 
+@UseGuards(JwtAuthGuard, RolesGuard)
 @Controller("product")
 export class ProductController {
   constructor(private readonly productService: ProductService) {}
 
+  @Roles("Seller")
   @Post("/:storeId")
   @ApiConsumes("multipart/form-data")
   @ApiBody({
@@ -39,24 +44,25 @@ export class ProductController {
       { name: "video", maxCount: 1 }
     ])
   )
-  create(@Param("storeId") storeId: string, @Body() createProductDto: CreateProductDto, @UploadedFiles() files: { images: Express.Multer.File[]; video: Express.Multer.File[] }) {
-    // TODO: make sure its a valid seller, user and store from jwt.
-    // i'll put all store's ids inside jwt so get store ids from there, for now i'm passing it in arguments
-    return this.productService.create(storeId, createProductDto, files.images, files.video?.[0] || null);
+  async create(@Param("storeId") storeId: string, @Body() dto: CreateProductDto, @Req() req: any, @UploadedFiles() files: { images: Express.Multer.File[]; video: Express.Multer.File[] }) {
+    return await this.productService.create(storeId, dto, req.user, files.images, files.video?.[0] || null);
   }
 
+  @Roles("Buyer", "Seller", "Admin", "SuperAdmin")
   @Get("/:storeId")
-  findAll(@Param("storeId") storeId: string) {
+  async findAll(@Param("storeId") storeId: string, @Req() req: any) {
     // TODO: validate user and seller from jwt first
-    return this.productService.findAll(storeId);
+    return await this.productService.findAll(storeId, req.user);
   }
 
+  @Roles("Buyer", "Seller", "Admin", "SuperAdmin")
   @Get(":productId")
-  findOne(@Param("productId") productId: string) {
+  async findOne(@Param("productId") productId: string, @Req() req: any) {
     // TODO: validate user and seller from jwt first
-    return this.productService.findOne(productId);
+    return await this.productService.findOne(productId, req.user);
   }
 
+  @Roles("Seller")
   @Patch(":productId")
   @ApiConsumes("multipart/form-data")
   @ApiBody({
@@ -88,14 +94,15 @@ export class ProductController {
       { name: "video", maxCount: 1 }
     ])
   )
-  update(@Param("productId") productId: string, @Body() updateProductDto: UpdateProductDto, @UploadedFiles() files: { images?: Express.Multer.File[]; video?: Express.Multer.File[] }) {
+  async update(@Param("productId") productId: string, @Body() dto: UpdateProductDto, @Req() req: any, @UploadedFiles() files: { images?: Express.Multer.File[]; video?: Express.Multer.File[] }) {
     //TODO:  validate users and otehr things before sending request here
-    return this.productService.update(productId, updateProductDto, files.images || null, files.video?.[0] || null);
+    return await this.productService.update(productId, dto, req.user, files.images || null, files.video?.[0] || null);
   }
 
+  @Roles("Seller", "Admin", "SuperAdmin")
   @Delete(":productId")
-  remove(@Param("productId") productId: string) {
+  async remove(@Param("productId") productId: string, @Req() req: any) {
     // TODO: validate user and seller from jwt ids first, also get store id to add that in trash folder directory
-    return this.productService.remove(productId);
+    return await this.productService.remove(productId, req.user);
   }
 }

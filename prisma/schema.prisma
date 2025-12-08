@@ -107,7 +107,7 @@ model Rider {
   userId          String          @unique
   vehicleRegNo    String
   companyPhone    String
-  amountToRecieve Decimal
+  amountToRecieve Decimal         @default(0)
   orders          Order[]
   returnRequests  ReturnRequest[]
 }

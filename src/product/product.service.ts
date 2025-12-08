@@ -1,9 +1,10 @@
-import { BadRequestException, Injectable, InternalServerErrorException } from "@nestjs/common";
+import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException } from "@nestjs/common";
 import { CreateProductDto } from "./dto/create-product.dto";
 import { UpdateProductDto } from "./dto/update-product.dto";
 import { PrismaService } from "prisma/prisma.service";
 import { S3Service } from "src/s3/s3.service";
 import { Prisma } from "@prisma/client";
+import { Utils } from "src/utils/utils";
 
 @Injectable()
 export class ProductService {
@@ -12,7 +13,16 @@ export class ProductService {
     private readonly s3Service: S3Service
   ) {}
 
-  async create(storeId: string, dto: CreateProductDto, images: Express.Multer.File[], video: Express.Multer.File | null) {
+  private async $isValidActor(payload: any) {
+    const valid = await Utils.isValidActor(payload.actorId, payload.role, this.prisma);
+    if (!valid) {
+      throw new NotFoundException(`${payload.role} not found or invalid`);
+    }
+  }
+
+  async create(storeId: string, dto: CreateProductDto, payload: any, images: Express.Multer.File[], video: Express.Multer.File | null) {
+    this.$isValidActor(payload);
+
     const store = await this.prisma.store.findUnique({ where: { id: storeId } });
     if (!store) {
       throw new BadRequestException("Store Not Found");
@@ -64,7 +74,9 @@ export class ProductService {
     }
   }
 
-  async findAll(storeId: string) {
+  async findAll(storeId: string, payload: any) {
+    this.$isValidActor(payload);
+
     try {
       const storeExists = await this.prisma.store.count({ where: { id: storeId } });
       if (!storeExists) {
@@ -78,7 +90,8 @@ export class ProductService {
     }
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, payload: any) {
+    this.$isValidActor(payload);
     try {
       const product = await this.prisma.product.findUnique({ where: { id } });
       if (!product) {
@@ -90,7 +103,9 @@ export class ProductService {
     }
   }
 
-  async update(id: string, dto: UpdateProductDto, images: Express.Multer.File[] | null, video: Express.Multer.File | null) {
+  async update(id: string, dto: UpdateProductDto, payload: any, images: Express.Multer.File[] | null, video: Express.Multer.File | null) {
+    this.$isValidActor(payload);
+
     const product = await this.prisma.product.findUnique({ where: { id }, select: { images: true, video: true } });
 
     if (!product) throw new BadRequestException("Product not found");
@@ -209,13 +224,15 @@ export class ProductService {
         await Promise.all(product.images.map((img) => this.s3Service.deleteFile(`${trashFolder}/image_${img}`)));
       }
     } catch (err) {
-      console.warn("Failed to delete trash files, they can be cleaned later:", err?.message);
+      console.warn("Failed to delete trash files, they can be cleaned later: ", err?.message);
     }
 
     return updatedProduct;
   }
 
-  async remove(id: string) {
+  async remove(id: string, payload: any) {
+    this.$isValidActor(payload);
+
     const product = await this.prisma.product.findUnique({ where: { id }, select: { video: true, images: true } });
     if (!product) {
       throw new BadRequestException("No Product found against the provided id to delete");

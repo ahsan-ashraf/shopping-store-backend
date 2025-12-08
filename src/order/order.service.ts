@@ -1,17 +1,22 @@
-import { BadRequestException, Injectable, InternalServerErrorException } from "@nestjs/common";
+import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException, UnauthorizedException } from "@nestjs/common";
 import { CreateOrderDto } from "./dto/create-order.dto";
 import { PrismaService } from "prisma/prisma.service";
 import { OrderSelect } from "./shape/order-select";
+import { Utils } from "src/utils/utils";
 
 @Injectable()
 export class OrderService {
   constructor(private readonly prisma: PrismaService) {}
 
-  async create(buyerId: string, dto: CreateOrderDto) {
-    const buyerExists = await this.prisma.buyer.count({ where: { id: buyerId } });
-    if (!buyerExists) {
-      throw new BadRequestException("Buyer Not Found.");
+  private async $isValidActor(payload: any) {
+    const valid = await Utils.isValidActor(payload.actorId, payload.role, this.prisma);
+    if (!valid) {
+      throw new NotFoundException(`${payload.role} not found or invalid`);
     }
+  }
+
+  async create(dto: CreateOrderDto, payload: any) {
+    this.$isValidActor(payload);
 
     const deliveryAddressExists = await this.prisma.address.count({
       where: { id: dto.deliveryAddressId }
@@ -23,7 +28,7 @@ export class OrderService {
     try {
       const createdOrder = await this.prisma.order.create({
         data: {
-          buyerId,
+          buyerId: payload.actorId,
           deliveryAddressId: dto.deliveryAddressId,
           paymentMethod: dto.paymentMethod,
           paymentStatus: dto.paymentStatus,
@@ -53,7 +58,10 @@ export class OrderService {
     }
   }
 
-  async findAll() {
+  // admins only
+  async findAll(payload: any) {
+    this.$isValidActor(payload);
+
     try {
       const allOrders = await this.prisma.order.findMany({ select: OrderSelect });
       return {
@@ -65,7 +73,10 @@ export class OrderService {
       throw new InternalServerErrorException(`Failed to retrieve all orders: ${err?.message}`);
     }
   }
-  async findOne(orderId: string) {
+
+  async findOne(orderId: string, payload: any) {
+    this.$isValidActor(payload);
+
     try {
       const order = await this.prisma.order.findUnique({ where: { id: orderId }, select: OrderSelect });
       return {
@@ -81,14 +92,10 @@ export class OrderService {
     }
   }
 
-  // TODO: DB Failure Errors will bubble up and nest js will auto throw them in internal server error exception
-  async findAllOfBuyer(buyerId: string) {
-    const buyerExists = await this.prisma.buyer.count({ where: { id: buyerId } });
-    if (!buyerExists) {
-      throw new BadRequestException("Buyer Not Found");
-    }
+  async findAllOfBuyer(payload: any) {
+    this.$isValidActor(payload);
 
-    const allOrdersRelatedToBuyer = await this.prisma.order.findMany({ where: { buyerId }, select: OrderSelect });
+    const allOrdersRelatedToBuyer = await this.prisma.order.findMany({ where: { buyerId: payload.actorId }, select: OrderSelect });
     const response = {
       success: true,
       data: allOrdersRelatedToBuyer,
@@ -97,9 +104,11 @@ export class OrderService {
     return response;
   }
 
-  async remove(buyerId: string, orderId: string) {
+  async remove(orderId: string, payload: any) {
+    this.$isValidActor(payload);
+
     try {
-      const deletedOrder = await this.prisma.order.delete({ where: { id_buyerId: { id: orderId, buyerId } }, select: OrderSelect });
+      const deletedOrder = await this.prisma.order.delete({ where: { id_buyerId: { id: orderId, buyerId: payload.actorId } }, select: OrderSelect });
       return {
         success: true,
         data: deletedOrder,
