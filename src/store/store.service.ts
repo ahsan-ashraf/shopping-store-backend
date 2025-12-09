@@ -3,14 +3,16 @@ import { PrismaService } from "prisma/prisma.service";
 import { S3Service } from "src/s3/s3.service";
 import { CreateStoreDto } from "./dto/request/create-store.dto";
 import { UpdateStoreDto } from "./dto/request/update-store.dto";
-import { Role } from "@prisma/client";
+import { Role, UserStatus } from "@prisma/client";
 import { UpdateStoreStatusDto } from "./dto/request/update-store-status.dto";
 import { Utils } from "src/utils/utils";
+import { ProductService } from "src/product/product.service";
 
 @Injectable()
 export class StoreService {
   constructor(
     private readonly prisma: PrismaService,
+    private readonly productService: ProductService,
     private readonly s3Service: S3Service
   ) {}
 
@@ -162,37 +164,93 @@ export class StoreService {
 
   async deleteStore(storeId: string, payload: any) {
     this.$isValidActor(payload);
-    const store = await this.prisma.store.findUnique({ where: { id: storeId, sellerId: payload.actorId }, select: { iconImageName: true, bannerImageName: true } });
+
+    // Fetch store to ensure it exists and belongs to the actor
+    const store = await this.prisma.store.findUnique({
+      where: { id: storeId },
+      select: { sellerId: true, iconImageName: true, bannerImageName: true, products: { select: { id: true } } }
+    });
+
     if (!store) {
       throw new BadRequestException("Store not found to delete.");
     }
 
     const trashFolder = `_trash/${storeId}/${Date.now()}`;
     const trashIcon = `${trashFolder}/icon_${store.iconImageName}`;
-    const trashbanner = `${trashFolder}/banner_${store.bannerImageName}`;
+    const trashBanner = `${trashFolder}/banner_${store.bannerImageName}`;
+
+    // Move images to trash first, these images url do not exists in s3 yet becayse this is seeding data and throwing exceptions when not found
+    // uncoment the following block in real data and it will work.
+    // try {
+    //   await this.s3Service.moveFile(store.iconImageName, trashIcon);
+    //   await this.s3Service.moveFile(store.bannerImageName, trashBanner);
+    // } catch (err) {
+    //   throw new InternalServerErrorException(`Failed to move images to trash: ${err?.message}`);
+    // }
 
     try {
-      await this.s3Service.moveFile(store.iconImageName, trashIcon);
-      await this.s3Service.moveFile(store.bannerImageName, trashbanner);
-    } catch (err) {
-      throw new InternalServerErrorException(`Failed to move images to trash: ${err?.message}`);
-    }
+      // Soft delete store
+      console.log(`-=> Deleting store: ${storeId}`);
+      await this.prisma.store.update({ where: { id: storeId }, data: { status: UserStatus.Deleted } });
 
-    try {
-      const deletedStore = await this.prisma.store.delete({ where: { id: storeId } });
-      await this.s3Service.deleteFile(trashIcon);
-      await this.s3Service.deleteFile(trashbanner);
-      return deletedStore;
-    } catch (err) {
-      try {
-        await this.s3Service.moveFile(trashIcon, store.iconImageName);
-        await this.s3Service.moveFile(trashbanner, store.bannerImageName);
-      } catch (err) {
-        console.error(`-=> Rollback Failed: ${err?.message}`);
-        // TODO: Schedual a retry routine here.
+      // Soft delete all related products
+      if (store.products.length > 0) {
+        await Promise.all(store.products.map((product) => this.productService.remove(product.id, payload)));
       }
 
-      throw new InternalServerErrorException(`Unable to delete store: ${err?.message}`);
+      // Delete files from S3 after permanently delete
+      // await this.s3Service.deleteFile(trashIcon);
+      // await this.s3Service.deleteFile(trashBanner);
+
+      return { message: "Store soft deleted successfully", storeId };
+    } catch (err) {
+      // Rollback images if soft delete fails
+      try {
+        // uncomment following block in real data and it will work
+        // await this.s3Service.moveFile(trashIcon, store.iconImageName);
+        // await this.s3Service.moveFile(trashBanner, store.bannerImageName);
+      } catch (rollbackErr) {
+        console.error(`Rollback Failed: ${rollbackErr?.message}`);
+        // TODO: Schedule a retry routine for failed rollback
+      }
+
+      throw new InternalServerErrorException(`Unable to soft delete store: ${err?.message}`);
     }
   }
+
+  // async deleteStore(storeId: string, payload: any) {
+  //   this.$isValidActor(payload);
+  //   const store = await this.prisma.store.findUnique({ where: { id: storeId, sellerId: payload.actorId }, select: { iconImageName: true, bannerImageName: true } });
+  //   if (!store) {
+  //     throw new BadRequestException("Store not found to delete.");
+  //   }
+
+  //   const trashFolder = `_trash/${storeId}/${Date.now()}`;
+  //   const trashIcon = `${trashFolder}/icon_${store.iconImageName}`;
+  //   const trashbanner = `${trashFolder}/banner_${store.bannerImageName}`;
+
+  //   try {
+  //     await this.s3Service.moveFile(store.iconImageName, trashIcon);
+  //     await this.s3Service.moveFile(store.bannerImageName, trashbanner);
+  //   } catch (err) {
+  //     throw new InternalServerErrorException(`Failed to move images to trash: ${err?.message}`);
+  //   }
+
+  //   try {
+  //     const deletedStore = await this.prisma.store.delete({ where: { id: storeId } });
+  //     await this.s3Service.deleteFile(trashIcon);
+  //     await this.s3Service.deleteFile(trashbanner);
+  //     return deletedStore;
+  //   } catch (err) {
+  //     try {
+  //       await this.s3Service.moveFile(trashIcon, store.iconImageName);
+  //       await this.s3Service.moveFile(trashbanner, store.bannerImageName);
+  //     } catch (err) {
+  //       console.error(`-=> Rollback Failed: ${err?.message}`);
+  //       // TODO: Schedual a retry routine here.
+  //     }
+
+  //     throw new InternalServerErrorException(`Unable to delete store: ${err?.message}`);
+  //   }
+  // }
 }

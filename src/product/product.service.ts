@@ -3,7 +3,7 @@ import { CreateProductDto } from "./dto/create-product.dto";
 import { UpdateProductDto } from "./dto/update-product.dto";
 import { PrismaService } from "prisma/prisma.service";
 import { S3Service } from "src/s3/s3.service";
-import { Prisma } from "@prisma/client";
+import { Prisma, UserStatus } from "@prisma/client";
 import { Utils } from "src/utils/utils";
 
 @Injectable()
@@ -238,37 +238,90 @@ export class ProductService {
       throw new BadRequestException("No Product found against the provided id to delete");
     }
 
-    // const trashFolder = `_trash/${storeId}/${Date.now()}`;
-    const trashFolder = `_trash/${Date.now()}`;
-    const trashVideo = `${trashFolder}/video_${product.video}`;
+    const trashFolder = `_trash/${id}/${Date.now()}`;
+    const trashVideo = product.video ? `${trashFolder}/video_${product.video}` : null;
     const trashImages = product.images.map((image) => `${trashFolder}/image_${image}`);
 
-    try {
-      if (product.video) await this.s3Service.moveFile(product.video, trashVideo);
-    } catch (err) {
-      throw new InternalServerErrorException(`Couldn't delete video from server: ${err?.message}`);
-    }
-    try {
-      await Promise.all(product.images.map((image, i) => this.s3Service.moveFile(image, trashImages[i])));
-    } catch (err) {
-      if (product.video) await this.s3Service.moveFile(trashVideo, product.video);
-      throw new InternalServerErrorException(`Couldn't delete images from server: ${err?.message}`);
-    }
+    // Move video to trash if exists
+    // Move images to trash first, these images url do not exists in s3 yet becayse this is seeding data and throwing exceptions when not found
+    // uncoment the following block in real data and it will work.
+    // try {
+    //   if (product.video) await this.s3Service.moveFile(product.video, trashVideo!);
+    // } catch (err) {
+    //   throw new InternalServerErrorException(`Couldn't move video to trash: ${err?.message}`);
+    // }
 
+    // Move images to trash
+    // Move images to trash first, these images url do not exists in s3 yet becayse this is seeding data and throwing exceptions when not found
+    // uncoment the following block in real data and it will work.
+    // try {
+    //   await Promise.all(product.images.map((image, i) => this.s3Service.moveFile(image, trashImages[i])));
+    // } catch (err) {
+    //   if (product.video) await this.s3Service.moveFile(trashVideo!, product.video);
+    //   throw new InternalServerErrorException(`Couldn't move images to trash: ${err?.message}`);
+    // }
+
+    // Delete product from DB
     try {
-      const deletedProduct = await this.prisma.product.delete({ where: { id } });
-      await this.s3Service.deleteFile(trashVideo);
-      await Promise.all(trashImages.map((image) => this.s3Service.deleteFile(image)));
+      const deletedProduct = await this.prisma.product.update({ where: { id }, data: { status: UserStatus.Deleted } });
+
+      // permanently delete trash files after successful deletion
+      // if (trashVideo) await this.s3Service.deleteFile(trashVideo);
+      // await Promise.all(trashImages.map((image) => this.s3Service.deleteFile(image)));
       return deletedProduct;
     } catch (err) {
+      // Rollback S3 moves in case of DB failure
       try {
-        if (product.video) await this.s3Service.moveFile(trashVideo, product.video);
-        await Promise.all(product.images.map((image, i) => this.s3Service.moveFile(trashImages[i], image)));
-      } catch (err) {
-        console.log(`Rollback Failed: ${err?.message}`);
-        // Schedual a retry routine here.
+        // Move images to trash first, these images url do not exists in s3 yet becayse this is seeding data and throwing exceptions when not found
+        // uncoment the following block in real data and it will work.
+        // if (product.video) await this.s3Service.moveFile(trashVideo!, product.video);
+        // await Promise.all(product.images.map((image, i) => this.s3Service.moveFile(trashImages[i], image)));
+      } catch (rollbackErr) {
+        console.error(`Rollback Failed: ${rollbackErr?.message}`);
+        // Optional: schedule a retry
       }
       throw new InternalServerErrorException(`Couldn't delete product: ${err?.message}`);
     }
   }
+
+  // async remove(id: string, payload: any) {
+  //   this.$isValidActor(payload);
+
+  //   const product = await this.prisma.product.findUnique({ where: { id }, select: { video: true, images: true } });
+  //   if (!product) {
+  //     throw new BadRequestException("No Product found against the provided id to delete");
+  //   }
+
+  //   const trashFolder = `_trash/${Date.now()}`;
+  //   const trashVideo = `${trashFolder}/video_${product.video}`;
+  //   const trashImages = product.images.map((image) => `${trashFolder}/image_${image}`);
+
+  //   try {
+  //     if (product.video) await this.s3Service.moveFile(product.video, trashVideo);
+  //   } catch (err) {
+  //     throw new InternalServerErrorException(`Couldn't delete video from server: ${err?.message}`);
+  //   }
+  //   try {
+  //     await Promise.all(product.images.map((image, i) => this.s3Service.moveFile(image, trashImages[i])));
+  //   } catch (err) {
+  //     if (product.video) await this.s3Service.moveFile(trashVideo, product.video);
+  //     throw new InternalServerErrorException(`Couldn't delete images from server: ${err?.message}`);
+  //   }
+
+  //   try {
+  //     const deletedProduct = await this.prisma.product.delete({ where: { id } });
+  //     await this.s3Service.deleteFile(trashVideo);
+  //     await Promise.all(trashImages.map((image) => this.s3Service.deleteFile(image)));
+  //     return deletedProduct;
+  //   } catch (err) {
+  //     try {
+  //       if (product.video) await this.s3Service.moveFile(trashVideo, product.video);
+  //       await Promise.all(product.images.map((image, i) => this.s3Service.moveFile(trashImages[i], image)));
+  //     } catch (err) {
+  //       console.log(`Rollback Failed: ${err?.message}`);
+  //       // Schedual a retry routine here.
+  //     }
+  //     throw new InternalServerErrorException(`Couldn't delete product: ${err?.message}`);
+  //   }
+  // }
 }

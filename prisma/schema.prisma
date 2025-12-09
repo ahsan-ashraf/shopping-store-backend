@@ -25,6 +25,7 @@ enum UserStatus {
   PendingApproval @map("pendingApproval")
   Active          @map("active")
   Blocked         @map("blocked")
+  Deleted
 
   @@map("Status")
 }
@@ -45,18 +46,20 @@ enum OrderStatus {
   Delivered
   FailedToDeliver
   Canceled
+  Deleted
 }
 
 enum ReturnRequestStatus {
   ReturnRequested
   ReturnInProgress
   Returned
+  Deleted
 }
 
 model RefreshToken {
   id        String   @id @default(uuid())
   token     String   @unique
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
   userId    String
   createdAt DateTime @default(now())
   expiresAt DateTime
@@ -82,7 +85,7 @@ model User {
 
 model Buyer {
   id             String          @id @default(uuid())
-  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User            @relation(fields: [userId], references: [id])
   userId         String          @unique
   walletAmount   Decimal
   productReviews ProductReview[]
@@ -94,7 +97,7 @@ model Buyer {
 
 model Seller {
   id         String  @id @default(uuid())
-  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User    @relation(fields: [userId], references: [id])
   userId     String  @unique
   businessId String
   IBAN       String
@@ -103,7 +106,7 @@ model Seller {
 
 model Rider {
   id              String          @id @default(uuid())
-  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user            User            @relation(fields: [userId], references: [id])
   userId          String          @unique
   vehicleRegNo    String
   companyPhone    String
@@ -114,7 +117,7 @@ model Rider {
 
 model Address {
   id         String   @id @default(uuid())
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id])
   userId     String
   address    String
   city       String
@@ -138,7 +141,7 @@ model Category {
 // we should remvoe category from store and add that to product's table
 model Store {
   id                String             @id @default(uuid())
-  seller            Seller             @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  seller            Seller             @relation(fields: [sellerId], references: [id])
   sellerId          String
   bannerImageUrl    String
   bannerImageName   String
@@ -164,7 +167,7 @@ model Store {
 
 model StorePerformance {
   id          String   @id @default(uuid())
-  store       Store    @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  store       Store    @relation(fields: [storeId], references: [id])
   storeId     String
   impressions Int
   views       Int
@@ -175,7 +178,7 @@ model StorePerformance {
 
 model Product {
   id             String          @id @default(uuid())
-  store          Store           @relation(fields: [storeId], references: [id], onDelete: Cascade)
+  store          Store           @relation(fields: [storeId], references: [id])
   storeId        String
   stock          Int
   title          String
@@ -192,6 +195,7 @@ model Product {
   price          Decimal
   salePrice      Decimal?
   saleExpiresAt  DateTime?
+  status         UserStatus      @default(PendingApproval)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   productReviews ProductReview[]
@@ -207,22 +211,23 @@ model Product {
 
 model ProductReview {
   id        String   @id @default(uuid())
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id])
   productId String
-  buyer     Buyer?   @relation(fields: [buyerId], references: [id], onDelete: SetNull)
+  buyer     Buyer?   @relation(fields: [buyerId], references: [id])
   buyerId   String?
   comment   String
   reply     String?
   images    String[]
   date      DateTime
   rating    Decimal
+  status    UserStatus?  //@default(Active)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 model ProductStat {
   id          String   @id @default(uuid())
-  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product     Product  @relation(fields: [productId], references: [id])
   productId   String
   date        DateTime
   impressions Int
@@ -234,9 +239,9 @@ model ProductStat {
 
 model Wishlist {
   id        String   @id @default(uuid())
-  buyer     Buyer    @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  buyer     Buyer    @relation(fields: [buyerId], references: [id])
   buyerId   String
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id])
   productId String
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -247,9 +252,9 @@ model Wishlist {
 
 model Cart {
   id        String   @id @default(uuid())
-  product   Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product   Product  @relation(fields: [productId], references: [id])
   productId String
-  buyer     Buyer    @relation(fields: [buyerId], references: [id], onDelete: Cascade)
+  buyer     Buyer    @relation(fields: [buyerId], references: [id])
   buyerId   String
   qty       Int
   price     Decimal
@@ -262,7 +267,7 @@ model Cart {
 
 model Order {
   id                String          @id @default(uuid())
-  buyer             Buyer?          @relation(fields: [buyerId], references: [id], onDelete: SetNull)
+  buyer             Buyer?          @relation(fields: [buyerId], references: [id])
   buyerId           String? // optional for anonymous buyers and/or when buyer deleted but data is here for audit
   deliveryAddress   Address         @relation(fields: [deliveryAddressId], references: [id])
   deliveryAddressId String
@@ -271,7 +276,7 @@ model Order {
   status            OrderStatus     @default(Processing)
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
-  rider             Rider?          @relation(fields: [riderId], references: [id], onDelete: SetNull)
+  rider             Rider?          @relation(fields: [riderId], references: [id])
   riderId           String?
   orderItems        OrderItem[]
   returnRequests    ReturnRequest[]
@@ -285,7 +290,7 @@ model OrderItem {
   id                  String   @id @default(uuid())
   order               Order    @relation(fields: [orderId], references: [id])
   orderId             String
-  product             Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+  product             Product? @relation(fields: [productId], references: [id])
   productId           String?
   qty                 Int
   size                String
@@ -298,11 +303,11 @@ model OrderItem {
 
 model ReturnRequest {
   id             String              @id @default(uuid())
-  buyer          Buyer?              @relation(fields: [buyerId], references: [id], onDelete: SetNull)
+  buyer          Buyer?              @relation(fields: [buyerId], references: [id])
   buyerId        String?
-  product        Product?            @relation(fields: [productId], references: [id], onDelete: SetNull)
+  product        Product?            @relation(fields: [productId], references: [id])
   productId      String?
-  rider          Rider?              @relation(fields: [riderId], references: [id], onDelete: SetNull)
+  rider          Rider?              @relation(fields: [riderId], references: [id])
   riderId        String?
   order          Order               @relation(fields: [orderId], references: [id])
   orderId        String

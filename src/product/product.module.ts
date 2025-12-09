@@ -7,6 +7,7 @@ import { S3Module } from "src/s3/s3.module";
 @Module({
   imports: [PrismaModule, S3Module],
   controllers: [ProductController],
-  providers: [ProductService]
+  providers: [ProductService],
+  exports: [ProductService]
 })
 export class ProductModule {}
