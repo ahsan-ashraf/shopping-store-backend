@@ -7,6 +7,7 @@ import { FileFieldsInterceptor } from "@nestjs/platform-express";
 import { JwtAuthGuard } from "src/auth/guards/jwt-auth.guard";
 import { RolesGuard } from "src/auth/guards/roles.guard";
 import { Roles } from "src/auth/decorators/roles.decorator";
+import { UpdateCartDto } from "./dto/update-cart.dto";
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Controller("product")
@@ -48,17 +49,39 @@ export class ProductController {
     return await this.productService.create(storeId, dto, req.user, files.images, files.video?.[0] || null);
   }
 
+  @Roles("Buyer")
+  @Post(":productId")
+  async addToWishlist(@Param("productId") productId: string, @Req() req: any) {
+    return await this.productService.addToWishList(productId, req.user);
+  }
+
+  @Roles("Buyer")
+  @Post(":productId")
+  async removeFromWishlist(@Param("productId") productId: string, @Req() req: any) {
+    return await this.productService.removeFromWishlist(productId, req.user);
+  }
+
+  @Roles("Buyer")
+  @Post(":productId")
+  async updateCart(@Param("productId") productId: string, @Body() dto: UpdateCartDto, @Req() req: any) {
+    return await this.productService.updateCartQty(productId, dto.change, req.user);
+  }
+
+  @Roles("Buyer")
+  @Post(":productId")
+  async removeFromCart(@Param("productId") productId: string, @Req() req: any) {
+    return await this.productService.removeFromCart(productId, req.user);
+  }
+
   @Roles("Buyer", "Seller", "Admin", "SuperAdmin")
   @Get("/:storeId")
   async findAll(@Param("storeId") storeId: string, @Req() req: any) {
-    // TODO: validate user and seller from jwt first
     return await this.productService.findAll(storeId, req.user);
   }
 
   @Roles("Buyer", "Seller", "Admin", "SuperAdmin")
   @Get(":productId")
   async findOne(@Param("productId") productId: string, @Req() req: any) {
-    // TODO: validate user and seller from jwt first
     return await this.productService.findOne(productId, req.user);
   }
 
@@ -95,14 +118,12 @@ export class ProductController {
     ])
   )
   async update(@Param("productId") productId: string, @Body() dto: UpdateProductDto, @Req() req: any, @UploadedFiles() files: { images?: Express.Multer.File[]; video?: Express.Multer.File[] }) {
-    //TODO:  validate users and otehr things before sending request here
     return await this.productService.update(productId, dto, req.user, files.images || null, files.video?.[0] || null);
   }
 
   @Roles("Seller", "Admin", "SuperAdmin")
   @Delete(":productId")
   async remove(@Param("productId") productId: string, @Req() req: any) {
-    // TODO: validate user and seller from jwt ids first, also get store id to add that in trash folder directory
     return await this.productService.remove(productId, req.user);
   }
 }

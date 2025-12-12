@@ -418,13 +418,15 @@ async function main() {
     for (const p of cartProducts) {
       try {
         const priceNumber = typeof p.price === "number" ? p.price : Number(p.price);
+        const salePriceNumber = typeof p.price === "number" ? p.price : Number(p.salePrice);
 
         await prisma.cart.create({
           data: {
             buyerId: buyer.id,
             productId: p.id,
             qty: faker.number.int({ min: 1, max: 3 }),
-            price: priceNumber
+            priceAtAddition: priceNumber,
+            salePriceAtAddition: salePriceNumber
           }
         });
       } catch {

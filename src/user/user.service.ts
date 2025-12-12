@@ -28,8 +28,60 @@ export class UserService {
     return existingUser.operationalState === OperationalState.Blocked;
   }
 
+  async getProfile(userId: string, payload: any) {
+    await this.$isValidActor(payload);
+
+    const userProfile = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        name: true,
+        email: true,
+        dob: true,
+        gender: true,
+        role: true,
+        addresses: {
+          select: {
+            address: true,
+            city: true,
+            province: true,
+            postalCode: true,
+            isPrimary: true,
+            phone: true
+          }
+        },
+        buyer: {
+          select: {
+            walletAmount: true
+          }
+        },
+        rider: {
+          select: {
+            vehicleRegNo: true,
+            companyPhone: true
+          }
+        },
+        seller: {
+          select: {
+            businessId: true,
+            IBAN: true,
+            stores: {
+              select: {
+                id: true,
+                storeName: true,
+                iconImageUrl: true
+              }
+            }
+          }
+        }
+      }
+    });
+    if (!userProfile) {
+      throw new NotFoundException("No user profile found agains the provided id");
+    }
+    return userProfile;
+  }
   async updateStatus(userId: string, dto: UpdateUserStatusDto, payload: any) {
-    this.$isValidActor(payload);
+    await this.$isValidActor(payload);
 
     if (await this.$isUserAlreadyDeleted(userId)) {
       throw new BadRequestException("Can't update status of a deleted user");
@@ -67,7 +119,7 @@ export class UserService {
 
   async deleteUser(userId: string, payload: any) {
     return await this.prisma.$transaction(async (tx) => {
-      this.$isValidActor(payload);
+      await this.$isValidActor(payload);
 
       if (await this.$isUserAlreadyDeleted(userId)) {
         throw new BadRequestException("User Already Deleted");

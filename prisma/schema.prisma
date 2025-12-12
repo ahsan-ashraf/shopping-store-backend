@@ -48,14 +48,12 @@ enum OrderStatus {
   Delivered
   FailedToDeliver
   Canceled
-  Deleted
 }
 
 enum ReturnRequestStatus {
   ReturnRequested
   ReturnInProgress
   Returned
-  Deleted
 }
 
 model RefreshToken {
@@ -262,7 +260,8 @@ model Cart {
   buyer     Buyer    @relation(fields: [buyerId], references: [id])
   buyerId   String
   qty       Int
-  price     Decimal
+  priceAtAddition     Decimal @map("price")
+  salePriceAtAddition Decimal?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

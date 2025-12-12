@@ -4,6 +4,7 @@ import { CreateOrderDto } from "./dto/create-order.dto";
 import { JwtAuthGuard } from "src/auth/guards/jwt-auth.guard";
 import { RolesGuard } from "src/auth/guards/roles.guard";
 import { Roles } from "src/auth/decorators/roles.decorator";
+import { UpdateOrderStatusDto } from "./dto/update-order-status.dt";
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles("Buyer", "Admin", "SuperAdmin")
@@ -30,6 +31,12 @@ export class OrderController {
   @Get(":orderId")
   async findOne(@Param("orderId") orderId: string, @Req() req: any) {
     return this.orderService.findOne(orderId, req.user);
+  }
+
+  // TODO: TBD: who will udpate order status????
+  @Post(":orderId")
+  async updateStatus(@Param("orderId") orderId: string, dto: UpdateOrderStatusDto, @Req() req: any) {
+    return this.orderService.updateStatus(orderId, dto, req.user);
   }
 
   @Delete("/:orderId")

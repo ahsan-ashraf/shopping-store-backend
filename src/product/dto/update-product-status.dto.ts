@@ -1,14 +1,14 @@
 import { ApprovalState, OperationalState } from "@prisma/client";
 import { Transform } from "class-transformer";
-import { IsNotEmpty, IsString } from "class-validator";
+import { IsEnum, IsNotEmpty, IsString } from "class-validator";
 
 export class UpdateProductStatusDto {
-  @IsString()
+  @IsEnum(ApprovalState)
   @IsNotEmpty()
   @Transform(({ value }) => (value === "" ? undefined : value))
   approvalState: ApprovalState;
 
-  @IsString()
+  @IsEnum(OperationalState)
   @IsNotEmpty()
   @Transform(({ value }) => (value === "" ? undefined : value))
   operationalState: OperationalState;

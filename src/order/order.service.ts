@@ -3,6 +3,7 @@ import { CreateOrderDto } from "./dto/create-order.dto";
 import { PrismaService } from "prisma/prisma.service";
 import { OrderSelect } from "./shape/order-select";
 import { Utils } from "src/utils/utils";
+import { UpdateOrderStatusDto } from "./dto/update-order-status.dt";
 
 @Injectable()
 export class OrderService {
@@ -16,7 +17,7 @@ export class OrderService {
   }
 
   async create(dto: CreateOrderDto, payload: any) {
-    this.$isValidActor(payload);
+    await this.$isValidActor(payload);
 
     const deliveryAddressExists = await this.prisma.address.count({
       where: { id: dto.deliveryAddressId }
@@ -60,7 +61,7 @@ export class OrderService {
 
   // admins only
   async findAll(payload: any) {
-    this.$isValidActor(payload);
+    await this.$isValidActor(payload);
 
     try {
       const allOrders = await this.prisma.order.findMany({ select: OrderSelect });
@@ -75,7 +76,7 @@ export class OrderService {
   }
 
   async findOne(orderId: string, payload: any) {
-    this.$isValidActor(payload);
+    await this.$isValidActor(payload);
 
     try {
       const order = await this.prisma.order.findUnique({ where: { id: orderId }, select: OrderSelect });
@@ -93,7 +94,7 @@ export class OrderService {
   }
 
   async findAllOfBuyer(payload: any) {
-    this.$isValidActor(payload);
+    await this.$isValidActor(payload);
 
     const allOrdersRelatedToBuyer = await this.prisma.order.findMany({ where: { buyerId: payload.actorId }, select: OrderSelect });
     const response = {
@@ -104,8 +105,22 @@ export class OrderService {
     return response;
   }
 
+  async updateStatus(orderId: string, dto: UpdateOrderStatusDto, payload: any) {
+    await this.$isValidActor(payload);
+
+    try {
+      const updatedOrder = await this.prisma.order.update({ where: { id: orderId }, data: { ...dto } });
+      return updatedOrder;
+    } catch (err) {
+      if (err.code === "P2025") {
+        throw new NotFoundException("Order not found to udpate, against the provided id.");
+      }
+      throw err;
+    }
+  }
+
   async remove(orderId: string, payload: any) {
-    this.$isValidActor(payload);
+    await this.$isValidActor(payload);
 
     try {
       const deletedOrder = await this.prisma.order.delete({ where: { id_buyerId: { id: orderId, buyerId: payload.actorId } }, select: OrderSelect });

@@ -6,6 +6,7 @@ import { S3Service } from "src/s3/s3.service";
 import { ApprovalState, OperationalState, Prisma } from "@prisma/client";
 import { Utils } from "src/utils/utils";
 import { UpdateProductStatusDto } from "./dto/update-product-status.dto";
+import { PrismaClientKnownRequestError } from "generated/prisma/internal/prismaNamespace";
 
 @Injectable()
 export class ProductService {
@@ -79,8 +80,126 @@ export class ProductService {
     }
   }
 
+  async addToWishList(productId: string, payload: any) {
+    await this.$isValidActor(payload);
+
+    // const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
+    // const product = await this.prisma.product.findUnique({ where: { id: productId } });
+    // if (!product) {
+    //   throw new NotFoundException("Product not found");
+    // } else if (product.approvalState !== ApprovalState.Approved || product.operationalState !== OperationalState.Active) {
+    //   throw new BadRequestException("Couldn't add inactive product to wishlist.");
+    // }
+
+    // if (!user) {
+    //   throw new NotFoundException("User not found");
+    // }
+
+    // const exists = await this.prisma.wishlist.findUnique({ where: { buyerId_productId: { productId, buyerId: payload.sub } } });
+    // if (exists) {
+    //   throw new BadRequestException("Product is already in wishlist.");
+    // }
+
+    // const wishlistedProduct = await this.prisma.wishlist.create({
+    //   data: {
+    //     productId,
+    //     buyerId: payload.sub
+    //   }
+    // });
+    // return wishlistedProduct;
+
+    // as my wishlist table has unique composite key of productId and buyerId so if any product is enterend twice
+    // in wishlist it will throw a unique constraint voilation exception, indicating product already exists in table
+    // so no need to manually perform validation checks as done above, extremely fast, efficient, reliable in concurrency.
+    try {
+      const wishlistedProduct = await this.prisma.wishlist.create({ data: { productId, buyerId: payload.sub } });
+      return wishlistedProduct;
+    } catch (err) {
+      if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
+        throw new BadRequestException("Product already in wishlist.");
+      }
+      throw err;
+    }
+  }
+  async removeFromWishlist(productId: string, payload: any) {
+    await this.$isValidActor(payload);
+
+    try {
+      const removedProductFromWishlist = await this.prisma.wishlist.delete({ where: { buyerId_productId: { buyerId: payload.sub, productId } } });
+      return removedProductFromWishlist;
+    } catch (err) {
+      if (err instanceof PrismaClientKnownRequestError && err.code === "P2025") {
+        throw new NotFoundException("Product not found in wishlist");
+      }
+      throw err;
+    }
+  }
+
+  async addToCart(productId: string, payload: any) {
+    await this.$isValidActor(payload);
+    const product = await this.prisma.product.findUnique({ where: { id: productId } });
+    if (!product) {
+      throw new NotFoundException("Product not found to add to cart");
+    }
+
+    try {
+      const productAddedToCart = await this.prisma.cart.create({
+        data: {
+          productId,
+          buyerId: payload.sub,
+          qty: 1,
+          priceAtAddition: product.price,
+          salePriceAtAddition: product.salePrice
+        }
+      });
+      return productAddedToCart;
+    } catch (err) {
+      if (err instanceof PrismaClientKnownRequestError && err.code === "P2002") {
+        throw new BadRequestException("Product already exists in cart");
+      }
+      throw err;
+    }
+  }
+  async updateCartQty(productId: string, change: number, payload: any) {
+    await this.$isValidActor(payload);
+    if (change === 0) {
+      throw new BadRequestException("Change value cannot be zero");
+    }
+    try {
+      const updatedCart = await this.prisma.cart.update({
+        where: { buyerId_productId: { buyerId: payload.sub, productId } },
+        data: { qty: { increment: change } }
+      });
+
+      if (updatedCart.qty < 1) {
+        await this.prisma.cart.delete({ where: { buyerId_productId: { buyerId: payload.sub, productId } } });
+        return { message: "Product removed from cart as qty reached to 0" };
+      } else {
+        return updatedCart;
+      }
+    } catch (err) {
+      if (err instanceof PrismaClientKnownRequestError && err.code === "P2025") {
+        throw new NotFoundException("Product not found in cart to udpate qty");
+      }
+      throw err;
+    }
+  }
+  async removeFromCart(productId: string, payload: any) {
+    await this.$isValidActor(payload);
+
+    try {
+      const deletedProduct = await this.prisma.cart.delete({ where: { buyerId_productId: { buyerId: payload.sub, productId } } });
+      return deletedProduct;
+    } catch (err) {
+      if (err instanceof PrismaClientKnownRequestError && err.code === "P2025") {
+        throw new NotFoundException("Product not found in cart to delete");
+      }
+      throw err;
+    }
+  }
+
   async findAll(storeId: string, payload: any) {
-    this.$isValidActor(payload);
+    await this.$isValidActor(payload);
 
     try {
       const storeExists = await this.prisma.store.count({ where: { id: storeId } });
@@ -96,7 +215,7 @@ export class ProductService {
   }
 
   async findOne(id: string, payload: any) {
-    this.$isValidActor(payload);
+    await this.$isValidActor(payload);
     try {
       const product = await this.prisma.product.findUnique({ where: { id } });
       if (!product) {
@@ -109,7 +228,7 @@ export class ProductService {
   }
 
   async update(id: string, dto: UpdateProductDto, payload: any, images: Express.Multer.File[] | null, video: Express.Multer.File | null) {
-    this.$isValidActor(payload);
+    await this.$isValidActor(payload);
 
     const product = await this.prisma.product.findUnique({ where: { id }, select: { images: true, video: true } });
 
@@ -237,7 +356,7 @@ export class ProductService {
 
   async updateStatus(id: string, dto: UpdateProductStatusDto, payload: any, tx?: Prisma.TransactionClient) {
     const db = tx ?? this.prisma;
-    this.$isValidActor(payload);
+    await this.$isValidActor(payload);
 
     try {
       const updatedProduct = await db.product.update({ where: { id }, data: { ...dto }, select: { id: true, title: true, approvalState: true, operationalState: true } });
@@ -253,7 +372,7 @@ export class ProductService {
 
   async remove(id: string, payload: any, tx?: Prisma.TransactionClient) {
     const db = tx ?? this.prisma;
-    this.$isValidActor(payload);
+    await this.$isValidActor(payload);
 
     const product = await db.product.findUnique({ where: { id }, select: { video: true, images: true } });
     if (!product) {
@@ -308,7 +427,7 @@ export class ProductService {
   }
 
   // async remove(id: string, payload: any) {
-  //   this.$isValidActor(payload);
+  //   await this.$isValidActor(payload);
 
   //   const product = await this.prisma.product.findUnique({ where: { id }, select: { video: true, images: true } });
   //   if (!product) {
