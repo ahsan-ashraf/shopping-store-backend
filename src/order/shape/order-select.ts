@@ -4,6 +4,7 @@ export const OrderSelect = {
   paymentStatus: true,
   totalPrice: true,
   createdAt: true,
+  status: true,
 
   buyer: {
     select: {

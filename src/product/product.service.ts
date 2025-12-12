@@ -3,8 +3,9 @@ import { CreateProductDto } from "./dto/create-product.dto";
 import { UpdateProductDto } from "./dto/update-product.dto";
 import { PrismaService } from "prisma/prisma.service";
 import { S3Service } from "src/s3/s3.service";
-import { Prisma, UserStatus } from "@prisma/client";
+import { ApprovalState, OperationalState, Prisma } from "@prisma/client";
 import { Utils } from "src/utils/utils";
+import { UpdateProductStatusDto } from "./dto/update-product-status.dto";
 
 @Injectable()
 export class ProductService {
@@ -21,11 +22,15 @@ export class ProductService {
   }
 
   async create(storeId: string, dto: CreateProductDto, payload: any, images: Express.Multer.File[], video: Express.Multer.File | null) {
-    this.$isValidActor(payload);
+    await this.$isValidActor(payload);
 
     const store = await this.prisma.store.findUnique({ where: { id: storeId } });
     if (!store) {
       throw new BadRequestException("Store Not Found");
+    } else if (store.approvalState !== ApprovalState.Approved) {
+      throw new BadRequestException("Couldn't add product. Store is not yet approved by the administration.");
+    } else if (store.operationalState !== OperationalState.Active) {
+      throw new BadRequestException(`Couldn't add product. This Store is not ${store.operationalState}.`);
     }
 
     let uploadedImages;
@@ -230,10 +235,27 @@ export class ProductService {
     return updatedProduct;
   }
 
-  async remove(id: string, payload: any) {
+  async updateStatus(id: string, dto: UpdateProductStatusDto, payload: any, tx?: Prisma.TransactionClient) {
+    const db = tx ?? this.prisma;
     this.$isValidActor(payload);
 
-    const product = await this.prisma.product.findUnique({ where: { id }, select: { video: true, images: true } });
+    try {
+      const updatedProduct = await db.product.update({ where: { id }, data: { ...dto }, select: { id: true, title: true, approvalState: true, operationalState: true } });
+      return updatedProduct;
+    } catch (err) {
+      if (err.code === "P2025") {
+        throw new NotFoundException("Product not found to update status");
+      }
+      throw err;
+      // TODO: use above try catch method everywhere where i'm updating/delete records
+    }
+  }
+
+  async remove(id: string, payload: any, tx?: Prisma.TransactionClient) {
+    const db = tx ?? this.prisma;
+    this.$isValidActor(payload);
+
+    const product = await db.product.findUnique({ where: { id }, select: { video: true, images: true } });
     if (!product) {
       throw new BadRequestException("No Product found against the provided id to delete");
     }
@@ -263,7 +285,8 @@ export class ProductService {
 
     // Delete product from DB
     try {
-      const deletedProduct = await this.prisma.product.update({ where: { id }, data: { status: UserStatus.Deleted } });
+      const deleteStatusDto = { operationalState: OperationalState.Blocked };
+      const deletedProduct = await db.product.update({ where: { id }, data: { ...deleteStatusDto } });
 
       // permanently delete trash files after successful deletion
       // if (trashVideo) await this.s3Service.deleteFile(trashVideo);

@@ -1,4 +1,4 @@
-import { PrismaClient, Role, Gender, UserStatus, paymentMethod, PaymentStatus, OrderStatus, ReturnRequestStatus } from "@prisma/client";
+import { PrismaClient, Role, Gender, paymentMethod, PaymentStatus, OrderStatus, ReturnRequestStatus, ApprovalState, OperationalState } from "@prisma/client";
 import { faker } from "@faker-js/faker";
 
 const prisma = new PrismaClient();
@@ -31,7 +31,8 @@ async function main() {
       password: superAdminPassword,
       role: Role.SuperAdmin,
       gender: Gender.Male,
-      status: UserStatus.Active
+      approvalState: ApprovalState.Approved,
+      operationalState: OperationalState.Active
     }
   });
   userPasswords.push({
@@ -50,7 +51,8 @@ async function main() {
       password: adminPassword,
       role: Role.Admin,
       gender: Gender.Female,
-      status: UserStatus.Active
+      approvalState: ApprovalState.Approved,
+      operationalState: OperationalState.Active
     }
   });
   userPasswords.push({
@@ -73,10 +75,15 @@ async function main() {
         password,
         role,
         gender: faker.helpers.arrayElement([Gender.Male, Gender.Female, Gender.Other]),
-        status: faker.helpers.weightedArrayElement([
-          { weight: 7, value: UserStatus.Active },
-          { weight: 2, value: UserStatus.PendingApproval },
-          { weight: 1, value: UserStatus.Blocked }
+        approvalState: faker.helpers.weightedArrayElement([
+          { weight: 7, value: ApprovalState.Approved },
+          { weight: 2, value: ApprovalState.Pending },
+          { weight: 1, value: ApprovalState.Rejected }
+        ]),
+        operationalState: faker.helpers.weightedArrayElement([
+          { weight: 7, value: OperationalState.Active },
+          { weight: 2, value: OperationalState.Suspended },
+          { weight: 1, value: OperationalState.Blocked }
         ])
       }
     });

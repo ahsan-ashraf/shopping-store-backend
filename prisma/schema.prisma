@@ -21,13 +21,15 @@ enum Gender {
   Other  @map("other")
 }
 
-enum UserStatus {
-  PendingApproval @map("pendingApproval")
-  Active          @map("active")
-  Blocked         @map("blocked")
-  Deleted
-
-  @@map("Status")
+enum ApprovalState {
+  Pending
+  Approved
+  Rejected
+}
+enum OperationalState {
+  Active
+  Blocked
+  Suspended
 }
 
 enum paymentMethod {
@@ -73,7 +75,8 @@ model User {
   password      String
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
-  status        UserStatus     @default(PendingApproval)
+  approvalState    ApprovalState  @default(Pending)
+  operationalState OperationalState @default(Active)
   role          Role
   gender        Gender
   buyer         Buyer?
@@ -155,7 +158,8 @@ model Store {
   facebook          String?
   instagram         String?
   tiktok            String?
-  status            UserStatus         @default(PendingApproval)
+  approvalState     ApprovalState  @default(Pending)
+  operationalState  OperationalState @default(Active)
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   storePerformances StorePerformance[]
@@ -195,7 +199,8 @@ model Product {
   price          Decimal
   salePrice      Decimal?
   saleExpiresAt  DateTime?
-  status         UserStatus      @default(PendingApproval)
+  approvalState    ApprovalState  @default(Pending)
+  operationalState OperationalState @default(Active)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
   productReviews ProductReview[]
@@ -220,7 +225,7 @@ model ProductReview {
   images    String[]
   date      DateTime
   rating    Decimal
-  status    UserStatus?  //@default(Active)
+  operationalState OperationalState @default(Active)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
@@ -274,6 +279,7 @@ model Order {
   paymentMethod     paymentMethod
   paymentStatus     PaymentStatus
   status            OrderStatus     @default(Processing)
+  operationalState  OperationalState @default(Active)
   createdAt         DateTime        @default(now())
   updatedAt         DateTime        @updatedAt
   rider             Rider?          @relation(fields: [riderId], references: [id])

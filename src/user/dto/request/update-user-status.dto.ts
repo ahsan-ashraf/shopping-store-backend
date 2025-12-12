@@ -1,4 +1,4 @@
-import { UserStatus } from "@prisma/client";
+import { ApprovalState, OperationalState } from "@prisma/client";
 import { Transform } from "class-transformer";
 import { IsNotEmpty, IsString } from "class-validator";
 
@@ -6,5 +6,10 @@ export class UpdateUserStatusDto {
   @IsString()
   @IsNotEmpty()
   @Transform(({ value }) => (value === "" ? undefined : value))
-  status: UserStatus;
+  approvalState: ApprovalState;
+
+  @IsString()
+  @IsNotEmpty()
+  @Transform(({ value }) => (value === "" ? undefined : value))
+  operationalState: OperationalState;
 }

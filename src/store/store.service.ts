@@ -3,10 +3,11 @@ import { PrismaService } from "prisma/prisma.service";
 import { S3Service } from "src/s3/s3.service";
 import { CreateStoreDto } from "./dto/request/create-store.dto";
 import { UpdateStoreDto } from "./dto/request/update-store.dto";
-import { Role, UserStatus } from "@prisma/client";
+import { OperationalState, Prisma, PrismaClient } from "@prisma/client";
 import { UpdateStoreStatusDto } from "./dto/request/update-store-status.dto";
 import { Utils } from "src/utils/utils";
 import { ProductService } from "src/product/product.service";
+import { UpdateProductStatusDto } from "src/product/dto/update-product-status.dto";
 
 @Injectable()
 export class StoreService {
@@ -120,7 +121,8 @@ export class StoreService {
           facebook: true,
           instagram: true,
           tiktok: true,
-          status: true
+          approvalState: true,
+          operationalState: true
         }
       });
       return updatedStore;
@@ -129,44 +131,72 @@ export class StoreService {
     }
   }
 
-  async updateStatus(storeId: string, dto: UpdateStoreStatusDto, payload: any) {
-    this.$isValidActor(payload);
-    const store = await this.prisma.store.findFirst({ where: { id: storeId, sellerId: payload.actorId } });
-    if (!store) {
-      throw new BadRequestException("Store not found or Invalid store id to update status");
+  async updateStatus(storeId: string, dto: UpdateStoreStatusDto, payload: any, tx?: Prisma.TransactionClient) {
+    const db = tx ?? this.prisma;
+
+    if (!tx) {
+      return await this.prisma.$transaction(async (trx) => {
+        return this.updateStatus(storeId, dto, payload, trx);
+      });
     }
 
+    this.$isValidActor(payload);
+
     try {
-      const updatedStore = await this.prisma.store.update({
-        where: { id: store.id },
-        data: { ...dto },
-        select: {
-          sellerId: true,
-          bannerImageUrl: true,
-          bannerImageName: true,
-          iconImageUrl: true,
-          iconImageName: true,
-          storeName: true,
-          description: true,
-          categoryId: true,
-          youtube: true,
-          facebook: true,
-          instagram: true,
-          tiktok: true,
-          status: true
+      if (dto.operationalState !== OperationalState.Active) {
+        const updatedStore = await db.store.update({
+          where: { id: storeId },
+          data: { ...dto },
+          select: {
+            sellerId: true,
+            bannerImageUrl: true,
+            bannerImageName: true,
+            iconImageUrl: true,
+            iconImageName: true,
+            storeName: true,
+            description: true,
+            categoryId: true,
+            youtube: true,
+            facebook: true,
+            instagram: true,
+            tiktok: true,
+            approvalState: true,
+            operationalState: true,
+            products: true
+          }
+        });
+
+        for (const product of updatedStore.products) {
+          await this.productService.updateStatus(product.id, dto, payload, tx);
         }
-      });
-      return updatedStore;
+
+        return updatedStore;
+      } else {
+        const updatedStore = await db.store.update({ where: { id: storeId }, data: { ...dto }, select: { id: true, operationalState: true, approvalState: true } });
+        return updatedStore;
+      }
     } catch (err) {
-      throw new InternalServerErrorException("Failed to update store status");
+      if (err.code === "P2025") {
+        throw new NotFoundException("Couldn't found store against provided id to update status.");
+      }
+      throw err;
     }
   }
 
-  async deleteStore(storeId: string, payload: any) {
+  async deleteStore(storeId: string, payload: any, tx?: Prisma.TransactionClient) {
+    const db = tx ?? this.prisma;
+
+    // If no tx was provided, wrap the entire deleteStore in its own transaction
+    if (!tx) {
+      return await this.prisma.$transaction(async (trx) => {
+        return this.deleteStore(storeId, payload, trx); // re-invoke WITH transaction client
+      });
+    }
+
     this.$isValidActor(payload);
 
     // Fetch store to ensure it exists and belongs to the actor
-    const store = await this.prisma.store.findUnique({
+    const store = await db.store.findUnique({
       where: { id: storeId },
       select: { sellerId: true, iconImageName: true, bannerImageName: true, products: { select: { id: true } } }
     });
@@ -189,13 +219,13 @@ export class StoreService {
     // }
 
     try {
+      const deleteStatusDto = { operationalState: OperationalState.Blocked };
       // Soft delete store
-      console.log(`-=> Deleting store: ${storeId}`);
-      await this.prisma.store.update({ where: { id: storeId }, data: { status: UserStatus.Deleted } });
+      await db.store.update({ where: { id: storeId }, data: { ...deleteStatusDto } });
 
       // Soft delete all related products
       if (store.products.length > 0) {
-        await Promise.all(store.products.map((product) => this.productService.remove(product.id, payload)));
+        await Promise.all(store.products.map((product) => this.productService.remove(product.id, payload, db)));
       }
 
       // Delete files from S3 after permanently delete

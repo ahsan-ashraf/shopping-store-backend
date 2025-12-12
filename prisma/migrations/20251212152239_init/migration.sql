@@ -1,43 +1,62 @@
-/*
-  Warnings:
-
-  - The primary key for the `User` table will be changed. If it partially fails, the table could be left without primary key constraint.
-  - You are about to drop the column `password` on the `User` table. All the data in the column will be lost.
-  - You are about to drop the column `status` on the `User` table. All the data in the column will be lost.
-  - A unique constraint covering the columns `[email]` on the table `User` will be added. If there are existing duplicate values, this will fail.
-  - Added the required column `dob` to the `User` table without a default value. This is not possible if the table is not empty.
-  - Added the required column `gender` to the `User` table without a default value. This is not possible if the table is not empty.
-  - Added the required column `phone` to the `User` table without a default value. This is not possible if the table is not empty.
-  - Changed the type of `role` on the `User` table. No cast exists, the column would be dropped and recreated, which cannot be done if there is data, since the column is required.
-
-*/
 -- CreateEnum
 CREATE TYPE "Role" AS ENUM ('SuperAdmin', 'Admin', 'Seller', 'Rider', 'Buyer');
 
 -- CreateEnum
 CREATE TYPE "Gender" AS ENUM ('male', 'female', 'other');
 
--- AlterTable
-ALTER TABLE "User" DROP CONSTRAINT "User_pkey",
-DROP COLUMN "password",
-DROP COLUMN "status",
-ADD COLUMN     "dob" TIMESTAMP(3) NOT NULL,
-ADD COLUMN     "gender" "Gender" NOT NULL,
-ADD COLUMN     "phone" TEXT NOT NULL,
-ALTER COLUMN "id" DROP DEFAULT,
-ALTER COLUMN "id" SET DATA TYPE TEXT,
-DROP COLUMN "role",
-ADD COLUMN     "role" "Role" NOT NULL,
-ADD CONSTRAINT "User_pkey" PRIMARY KEY ("id");
-DROP SEQUENCE "User_id_seq";
+-- CreateEnum
+CREATE TYPE "ApprovalState" AS ENUM ('Pending', 'Approved', 'Rejected');
+
+-- CreateEnum
+CREATE TYPE "OperationalState" AS ENUM ('Active', 'Blocked', 'Suspended');
+
+-- CreateEnum
+CREATE TYPE "Status" AS ENUM ('pendingApproval', 'active', 'blocked', 'Deleted');
+
+-- CreateEnum
+CREATE TYPE "paymentMethod" AS ENUM ('Prepaid', 'PostPaid');
+
+-- CreateEnum
+CREATE TYPE "PaymentStatus" AS ENUM ('Paid', 'Pending');
+
+-- CreateEnum
+CREATE TYPE "OrderStatus" AS ENUM ('Processing', 'OutForDeliver', 'Delivered', 'FailedToDeliver', 'Canceled', 'Deleted');
+
+-- CreateEnum
+CREATE TYPE "ReturnRequestStatus" AS ENUM ('ReturnRequested', 'ReturnInProgress', 'Returned', 'Deleted');
+
+-- CreateTable
+CREATE TABLE "RefreshToken" (
+    "id" TEXT NOT NULL,
+    "token" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "RefreshToken_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "User" (
+    "id" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "email" TEXT NOT NULL,
+    "dob" TIMESTAMP(3) NOT NULL,
+    "password" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "status" "Status" NOT NULL DEFAULT 'pendingApproval',
+    "role" "Role" NOT NULL,
+    "gender" "Gender" NOT NULL,
+
+    CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+);
 
 -- CreateTable
 CREATE TABLE "Buyer" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "walletAmount" DECIMAL(65,30) NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Buyer_pkey" PRIMARY KEY ("id")
 );
@@ -48,8 +67,6 @@ CREATE TABLE "Seller" (
     "userId" TEXT NOT NULL,
     "businessId" TEXT NOT NULL,
     "IBAN" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
 
     CONSTRAINT "Seller_pkey" PRIMARY KEY ("id")
 );
@@ -60,8 +77,7 @@ CREATE TABLE "Rider" (
     "userId" TEXT NOT NULL,
     "vehicleRegNo" TEXT NOT NULL,
     "companyPhone" TEXT NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "amountToRecieve" DECIMAL(65,30) NOT NULL DEFAULT 0,
 
     CONSTRAINT "Rider_pkey" PRIMARY KEY ("id")
 );
@@ -96,15 +112,18 @@ CREATE TABLE "Category" (
 CREATE TABLE "Store" (
     "id" TEXT NOT NULL,
     "sellerId" TEXT NOT NULL,
-    "bannerImage" TEXT NOT NULL,
-    "iconImage" TEXT NOT NULL,
+    "bannerImageUrl" TEXT NOT NULL,
+    "bannerImageName" TEXT NOT NULL,
+    "iconImageUrl" TEXT NOT NULL,
+    "iconImageName" TEXT NOT NULL,
     "storeName" TEXT NOT NULL,
     "description" TEXT NOT NULL,
     "categoryId" TEXT NOT NULL,
-    "youtube" TEXT NOT NULL,
-    "facebook" TEXT NOT NULL,
-    "instagram" TEXT NOT NULL,
-    "tiktok" TEXT NOT NULL,
+    "youtube" TEXT,
+    "facebook" TEXT,
+    "instagram" TEXT,
+    "tiktok" TEXT,
+    "status" "Status" NOT NULL DEFAULT 'pendingApproval',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -136,13 +155,14 @@ CREATE TABLE "Product" (
     "size" TEXT[],
     "images" TEXT[],
     "tags" TEXT[],
-    "video" TEXT NOT NULL,
+    "video" TEXT,
     "returnPolicy" BOOLEAN NOT NULL,
     "warranty" BOOLEAN NOT NULL,
     "rating" DECIMAL(65,30) NOT NULL,
     "price" DECIMAL(65,30) NOT NULL,
     "salePrice" DECIMAL(65,30),
     "saleExpiresAt" TIMESTAMP(3),
+    "status" "Status" NOT NULL DEFAULT 'pendingApproval',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -159,6 +179,7 @@ CREATE TABLE "ProductReview" (
     "images" TEXT[],
     "date" TIMESTAMP(3) NOT NULL,
     "rating" DECIMAL(65,30) NOT NULL,
+    "status" "Status",
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -208,10 +229,9 @@ CREATE TABLE "Order" (
     "id" TEXT NOT NULL,
     "buyerId" TEXT,
     "deliveryAddressId" TEXT NOT NULL,
-    "paymentMethod" TEXT NOT NULL,
-    "paymentStatus" TEXT NOT NULL,
-    "totalPrice" DECIMAL(65,30) NOT NULL,
-    "status" TEXT NOT NULL,
+    "paymentMethod" "paymentMethod" NOT NULL,
+    "paymentStatus" "PaymentStatus" NOT NULL,
+    "status" "OrderStatus" NOT NULL DEFAULT 'Processing',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "riderId" TEXT,
@@ -246,11 +266,17 @@ CREATE TABLE "ReturnRequest" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "reason" TEXT NOT NULL,
     "images" TEXT[],
-    "status" TEXT NOT NULL,
+    "status" "ReturnRequestStatus" NOT NULL,
     "amountReceived" DECIMAL(65,30) NOT NULL,
 
     CONSTRAINT "ReturnRequest_pkey" PRIMARY KEY ("id")
 );
+
+-- CreateIndex
+CREATE UNIQUE INDEX "RefreshToken_token_key" ON "RefreshToken"("token");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Buyer_userId_key" ON "Buyer"("userId");
@@ -280,67 +306,64 @@ CREATE UNIQUE INDEX "Wishlist_buyerId_productId_key" ON "Wishlist"("buyerId", "p
 CREATE UNIQUE INDEX "Cart_buyerId_productId_key" ON "Cart"("buyerId", "productId");
 
 -- CreateIndex
-CREATE INDEX "Order_buyerId_idx" ON "Order"("buyerId");
-
--- CreateIndex
-CREATE INDEX "Order_riderId_idx" ON "Order"("riderId");
-
--- CreateIndex
 CREATE INDEX "Order_status_idx" ON "Order"("status");
 
 -- CreateIndex
 CREATE INDEX "Order_createdAt_idx" ON "Order"("createdAt");
 
 -- CreateIndex
-CREATE INDEX "ReturnRequest_status_idx" ON "ReturnRequest"("status");
+CREATE UNIQUE INDEX "Order_id_buyerId_key" ON "Order"("id", "buyerId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
+CREATE INDEX "ReturnRequest_status_idx" ON "ReturnRequest"("status");
 
 -- AddForeignKey
-ALTER TABLE "Buyer" ADD CONSTRAINT "Buyer_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "RefreshToken" ADD CONSTRAINT "RefreshToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Seller" ADD CONSTRAINT "Seller_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Buyer" ADD CONSTRAINT "Buyer_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Rider" ADD CONSTRAINT "Rider_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Seller" ADD CONSTRAINT "Seller_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Address" ADD CONSTRAINT "Address_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Rider" ADD CONSTRAINT "Rider_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Store" ADD CONSTRAINT "Store_sellerId_fkey" FOREIGN KEY ("sellerId") REFERENCES "Seller"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Address" ADD CONSTRAINT "Address_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Store" ADD CONSTRAINT "Store_sellerId_fkey" FOREIGN KEY ("sellerId") REFERENCES "Seller"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Store" ADD CONSTRAINT "Store_categoryId_fkey" FOREIGN KEY ("categoryId") REFERENCES "Category"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "StorePerformance" ADD CONSTRAINT "StorePerformance_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES "Store"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "StorePerformance" ADD CONSTRAINT "StorePerformance_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES "Store"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Product" ADD CONSTRAINT "Product_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES "Store"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Product" ADD CONSTRAINT "Product_storeId_fkey" FOREIGN KEY ("storeId") REFERENCES "Store"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ProductReview" ADD CONSTRAINT "ProductReview_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "ProductReview" ADD CONSTRAINT "ProductReview_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "ProductReview" ADD CONSTRAINT "ProductReview_buyerId_fkey" FOREIGN KEY ("buyerId") REFERENCES "Buyer"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "ProductStat" ADD CONSTRAINT "ProductStat_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "ProductStat" ADD CONSTRAINT "ProductStat_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Wishlist" ADD CONSTRAINT "Wishlist_buyerId_fkey" FOREIGN KEY ("buyerId") REFERENCES "Buyer"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Wishlist" ADD CONSTRAINT "Wishlist_buyerId_fkey" FOREIGN KEY ("buyerId") REFERENCES "Buyer"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Wishlist" ADD CONSTRAINT "Wishlist_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Wishlist" ADD CONSTRAINT "Wishlist_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Cart" ADD CONSTRAINT "Cart_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Cart" ADD CONSTRAINT "Cart_productId_fkey" FOREIGN KEY ("productId") REFERENCES "Product"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Cart" ADD CONSTRAINT "Cart_buyerId_fkey" FOREIGN KEY ("buyerId") REFERENCES "Buyer"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Cart" ADD CONSTRAINT "Cart_buyerId_fkey" FOREIGN KEY ("buyerId") REFERENCES "Buyer"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Order" ADD CONSTRAINT "Order_buyerId_fkey" FOREIGN KEY ("buyerId") REFERENCES "Buyer"("id") ON DELETE SET NULL ON UPDATE CASCADE;

@@ -2,8 +2,8 @@ import { BadRequestException, Injectable, NotFoundException } from "@nestjs/comm
 import { PrismaService } from "prisma/prisma.service";
 import { UpdateUserStatusDto } from "./dto/request/update-user-status.dto";
 import { Utils } from "src/utils/utils";
-import { UserStatus } from "@prisma/client";
 import { StoreService } from "src/store/store.service";
+import { OperationalState, Role } from "@prisma/client";
 
 @Injectable()
 export class UserService {
@@ -25,7 +25,7 @@ export class UserService {
       throw new NotFoundException("User not found.");
     }
     // check if user is already deleted
-    return existingUser.status === UserStatus.Deleted;
+    return existingUser.operationalState === OperationalState.Blocked;
   }
 
   async updateStatus(userId: string, dto: UpdateUserStatusDto, payload: any) {
@@ -35,48 +35,71 @@ export class UserService {
       throw new BadRequestException("Can't update status of a deleted user");
     }
 
-    const updatedUser = await this.prisma.user.update({ where: { id: userId }, data: { ...dto } });
-    return updatedUser;
+    try {
+      if (dto.operationalState !== OperationalState.Active) {
+        return await this.prisma.$transaction(async (tx) => {
+          const updatedUser = await tx.user.update({ where: { id: userId }, data: { ...dto }, select: { role: true, approvalState: true, operationalState: true } });
+
+          if (updatedUser.role === Role.Seller) {
+            const seller = await tx.seller.findUnique({ where: { userId }, select: { stores: { select: { id: true, products: true } } } });
+
+            if (seller && seller.stores?.length) {
+              for (const store of seller.stores) {
+                await this.storeService.updateStatus(store.id, dto, payload, tx);
+              }
+            }
+          } else if (updatedUser.role === Role.Rider) {
+            //TODO: shift its pending deliveries and return requests to some other buyer.
+          }
+          return updatedUser;
+        });
+      } else {
+        const updatedUser = await this.prisma.user.update({ where: { id: userId }, data: { ...dto }, select: { id: true, role: true, approvalState: true, operationalState: true } });
+        return updatedUser;
+      }
+    } catch (err) {
+      if (err.code === "P2025") {
+        throw new NotFoundException("Couldn't found user agains the provided id to update");
+      }
+      throw err;
+    }
   }
 
   async deleteUser(userId: string, payload: any) {
-    this.$isValidActor(payload);
+    return await this.prisma.$transaction(async (tx) => {
+      this.$isValidActor(payload);
 
-    if (await this.$isUserAlreadyDeleted(userId)) {
-      throw new BadRequestException("User Already Deleted");
-    }
-
-    const deleteStatusDto = {
-      status: UserStatus.Deleted
-    };
-
-    // it will soft delete all users i.e. admin, superadmin, seller, buyer, rider
-    const deletedUser = await this.prisma.user.update({ where: { id: userId }, data: { ...deleteStatusDto }, select: { role: true } });
-
-    if (deletedUser.role === "Seller") {
-      const seller = await this.prisma.seller.findUnique({ where: { userId }, include: { stores: { include: { products: true } } } });
-      if (seller && seller.stores.length) {
-        await Promise.all(seller.stores.map((store) => this.storeService.deleteStore(store.id, payload)));
+      if (await this.$isUserAlreadyDeleted(userId)) {
+        throw new BadRequestException("User Already Deleted");
       }
-    } else if (deletedUser.role === "Buyer") {
-      const buyer = await this.prisma.buyer.findUnique({
-        where: { userId }
-      });
-      if (buyer) {
-        await Promise.all([
-          this.prisma.cart.deleteMany({ where: { buyerId: buyer.id } }),
-          this.prisma.wishlist.deleteMany({ where: { buyerId: buyer.id } }),
-          this.prisma.order.updateMany({ where: { buyerId: buyer.id }, data: { ...deleteStatusDto } }),
-          this.prisma.returnRequest.updateMany({ where: { buyerId: buyer.id }, data: { ...deleteStatusDto } }),
-          this.prisma.productReview.updateMany({ where: { buyerId: buyer.id }, data: { ...deleteStatusDto } })
-        ]);
-      }
-    } else if (deletedUser.role === "Rider") {
-      // const rider = await this.prisma.rider.findUnique({ where: { userId } });
-      // if (rider){}
-      // nothing to soft delete for rider
-    }
 
-    return deletedUser;
+      const deleteStatusDto = { operationalState: OperationalState.Blocked };
+
+      // it will soft delete all users i.e. admin, superadmin, seller, buyer, rider
+      const deletedUser = await tx.user.update({ where: { id: userId }, data: { ...deleteStatusDto }, select: { role: true } });
+      if (deletedUser.role === "Seller") {
+        const seller = await tx.seller.findUnique({ where: { userId }, include: { stores: { include: { products: true } } } });
+        if (seller && seller.stores?.length) {
+          for (const store of seller.stores) {
+            await this.storeService.deleteStore(store.id, payload, tx);
+          }
+        }
+      } else if (deletedUser.role === "Buyer") {
+        const buyer = await tx.buyer.findUnique({ where: { userId } });
+        if (buyer) {
+          await tx.cart.deleteMany({ where: { buyerId: buyer.id } });
+          await tx.wishlist.deleteMany({ where: { buyerId: buyer.id } });
+          await tx.order.updateMany({ where: { buyerId: buyer.id }, data: { ...deleteStatusDto } });
+          await tx.returnRequest.updateMany({ where: { buyerId: buyer.id }, data: { ...deleteStatusDto } });
+          await tx.productReview.updateMany({ where: { buyerId: buyer.id }, data: { ...deleteStatusDto } });
+        }
+      } else if (deletedUser.role === "Rider") {
+        // const rider = await this.prisma.rider.findUnique({ where: { userId } });
+        // if (rider) {}
+        // nothing to soft delete for rider
+      }
+
+      return { message: "User deleted successfully", data: deletedUser, success: true };
+    });
   }
 }
