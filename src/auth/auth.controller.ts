@@ -14,19 +14,26 @@ import { RolesGuard } from "./guards/roles.guard";
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
-  private setResponseCookie(res: Response, accessToken: string, refreshToken: string) {
+  private setResponseCookie(res: Response, accessToken: string, refreshToken: string, user: any) {
     res.cookie("accessToken", accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       maxAge: 60 * 60 * 1000, // 1 hour
-      sameSite: "lax"
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax"
     });
 
     res.cookie("refreshToken", refreshToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
-      sameSite: "lax"
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax"
+    });
+
+    res.cookie("authData", user, {
+      httpOnly: false,
+      secure: process.env.NODE_ENV === "production",
+      maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+      sameSite: process.env.NODE_ENV === "production" ? "none" : "lax"
     });
   }
 
@@ -34,7 +41,7 @@ export class AuthController {
   @HttpCode(201)
   async registerAdmin(@Body() dto: CreateUserAdminDto, @Res({ passthrough: true }) res: Response) {
     const { accessToken, refreshToken, user } = await this.authService.createAdmin(dto);
-    this.setResponseCookie(res, accessToken, refreshToken);
+    this.setResponseCookie(res, accessToken, refreshToken, user);
     return user;
   }
 
@@ -42,7 +49,7 @@ export class AuthController {
   @HttpCode(201)
   async registerSeller(@Body() dto: CreateUserSellerDto, @Res({ passthrough: true }) res: Response) {
     const { accessToken, refreshToken, user } = await this.authService.createSeller(dto);
-    this.setResponseCookie(res, accessToken, refreshToken);
+    this.setResponseCookie(res, accessToken, refreshToken, user);
     return user;
   }
 
@@ -50,7 +57,7 @@ export class AuthController {
   @HttpCode(201)
   async registerBuyer(@Body() dto: CreateUserBuyerDto, @Res({ passthrough: true }) res: Response) {
     const { accessToken, refreshToken, user } = await this.authService.createBuyer(dto);
-    this.setResponseCookie(res, accessToken, refreshToken);
+    this.setResponseCookie(res, accessToken, refreshToken, user);
     return user;
   }
 
@@ -58,7 +65,7 @@ export class AuthController {
   @HttpCode(201)
   async registerRider(@Body() dto: CreateUserRiderDto, @Res({ passthrough: true }) res: Response) {
     const { accessToken, refreshToken, user } = await this.authService.createRider(dto);
-    this.setResponseCookie(res, accessToken, refreshToken);
+    this.setResponseCookie(res, accessToken, refreshToken, user);
     return user;
   }
 
@@ -66,7 +73,7 @@ export class AuthController {
   @HttpCode(200)
   async login(@Body() dto: LoginRequestDto, @Res({ passthrough: true }) res: Response) {
     const { accessToken, refreshToken, user } = await this.authService.loginUser(dto);
-    this.setResponseCookie(res, accessToken, refreshToken);
+    this.setResponseCookie(res, accessToken, refreshToken, user);
     return user;
   }
 
@@ -97,7 +104,7 @@ export class AuthController {
 
     const { accessToken, refreshToken, user } = await this.authService.refreshTokens(oldRefreshToken);
 
-    this.setResponseCookie(res, accessToken, refreshToken);
+    this.setResponseCookie(res, accessToken, refreshToken, user);
 
     return user;
   }

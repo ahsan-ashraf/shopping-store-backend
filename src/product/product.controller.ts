@@ -63,7 +63,7 @@ export class ProductController {
 
   @Roles("Buyer")
   @Post(":productId")
-  async updateCart(@Param("productId") productId: string, @Body() dto: UpdateCartDto, @Req() req: any) {
+  async updateCartQty(@Param("productId") productId: string, @Body() dto: UpdateCartDto, @Req() req: any) {
     return await this.productService.updateCartQty(productId, dto.change, req.user);
   }
 

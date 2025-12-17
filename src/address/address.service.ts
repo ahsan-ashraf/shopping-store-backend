@@ -48,7 +48,6 @@ export class AddressService {
               role: true,
               createdAt: true,
               updatedAt: true,
-              status: true
             }
           }
         }
@@ -105,7 +104,6 @@ export class AddressService {
               role: true,
               createdAt: true,
               updatedAt: true,
-              status: true
             }
           }
         }
@@ -140,7 +138,6 @@ export class AddressService {
               role: true,
               createdAt: true,
               updatedAt: true,
-              status: true
             }
           }
         }

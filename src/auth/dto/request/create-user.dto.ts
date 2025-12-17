@@ -1,4 +1,4 @@
-import { Gender, Role, UserStatus } from "@prisma/client";
+import { Gender } from "@prisma/client";
 import { IsDate, IsEmail, IsEnum, IsString, Length, ValidateNested } from "class-validator";
 import { Type } from "class-transformer";
 import { ApiProperty } from "@nestjs/swagger";

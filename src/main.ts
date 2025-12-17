@@ -7,6 +7,25 @@ import cookieParser from "cookie-parser"; // default import
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
+  const origins = [
+    'http://localhost:3000',     // React / Next dev
+    'http://localhost:5173',     // Vite
+    'https://yourdomain.com',    // Production frontend
+  ];
+
+  app.enableCors({
+    origin: (origin, callback) => {
+      if (!origin || origins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    credentials: true, // REQUIRED if using cookies (JWT refresh token)
+  });
+
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true, // strips unknown fields
@@ -14,6 +33,7 @@ async function bootstrap() {
       transform: true // transforms strings proper types (Date, number, etc)
     })
   );
+  
   app.use(cookieParser()); // <-- enable cookie parsing
 
   // swagger configuration

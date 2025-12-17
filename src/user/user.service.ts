@@ -4,6 +4,7 @@ import { UpdateUserStatusDto } from "./dto/request/update-user-status.dto";
 import { Utils } from "src/utils/utils";
 import { StoreService } from "src/store/store.service";
 import { OperationalState, Role } from "@prisma/client";
+import { PrismaClientKnownRequestError } from "generated/prisma/internal/prismaNamespace";
 
 @Injectable()
 export class UserService {
@@ -110,7 +111,7 @@ export class UserService {
         return updatedUser;
       }
     } catch (err) {
-      if (err.code === "P2025") {
+      if (err instanceof PrismaClientKnownRequestError && err.code === "P2025") {
         throw new NotFoundException("Couldn't found user agains the provided id to update");
       }
       throw err;

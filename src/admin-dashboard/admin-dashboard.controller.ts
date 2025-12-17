@@ -3,7 +3,7 @@ import { AdminDashboardService } from "./admin-dashboard.service";
 import { Roles } from "src/auth/decorators/roles.decorator";
 import { RolesGuard } from "src/auth/guards/roles.guard";
 import { JwtAuthGuard } from "src/auth/guards/jwt-auth.guard";
-import { UserStatus } from "@prisma/client";
+import { OperationalState } from "@prisma/client";
 
 @UseGuards(JwtAuthGuard, RolesGuard)
 @Roles("SuperAdmin", "Admin")
@@ -27,23 +27,23 @@ export class AdminDashboardController {
   }
 
   @Get("/sellers-info")
-  async getSellersInfo(@Query("status") status: UserStatus, @Query("pageNo") pageNo: number, @Query("pageSize") pageSize: number) {
+  async getSellersInfo(@Query("status") status: OperationalState, @Query("pageNo") pageNo: number, @Query("pageSize") pageSize: number) {
     return await this.service.getSellersInfo(status, pageNo, pageSize);
   }
 
   @Get("/buyers-info")
-  async getBuyersInfo(@Query("status") status: UserStatus, @Query("pageNo") pageNo: number, @Query("pageSize") pageSize: number) {
+  async getBuyersInfo(@Query("status") status: OperationalState, @Query("pageNo") pageNo: number, @Query("pageSize") pageSize: number) {
     return await this.service.getBuyersInfo(status, pageNo, pageSize);
   }
 
   @Get("/riders-info")
-  async getRidersInfo(@Query("status") status: UserStatus, @Query("pageNo") pageNo: number, @Query("pageSize") pageSize: number) {
+  async getRidersInfo(@Query("status") status: OperationalState, @Query("pageNo") pageNo: number, @Query("pageSize") pageSize: number) {
     return await this.service.getRidersInfo(status, pageNo, pageSize);
   }
 
   @Roles("SuperAdmin")
   @Get("/admins-info")
-  async getAdminsInfo(@Query("status") status: UserStatus, @Query("pageNo") pageNo: number, @Query("pageSize") pageSize: number) {
+  async getAdminsInfo(@Query("status") status: OperationalState, @Query("pageNo") pageNo: number, @Query("pageSize") pageSize: number) {
     return await this.service.getAdminsInfo(status, pageNo, pageSize);
   }
 }

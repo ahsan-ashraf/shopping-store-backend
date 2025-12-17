@@ -251,8 +251,7 @@ export class AuthService {
     if (!user) {
       throw new UnauthorizedException("Invalid Credentials");
     }
-    // const isPasswordValid = await this.$validatePassword(dto.password, user.password); // uncomment it later, for encrypted passwords
-    const isPasswordValid = dto.password === user.password;
+    const isPasswordValid = await this.$validatePassword(dto.password, user.password);
 
     if (!isPasswordValid) {
       throw new UnauthorizedException("Invalid Credentials");

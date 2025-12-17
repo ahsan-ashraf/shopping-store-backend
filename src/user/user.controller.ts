@@ -17,7 +17,7 @@ export class UserController {
 
   @Roles("Admin", "SuperAdmin")
   @Patch("update-status/:userId")
-  async updateUser(@Param("userId") userId: string, @Body() dto: UpdateUserStatusDto, @Req() req: any) {
+  async updateStatus(@Param("userId") userId: string, @Body() dto: UpdateUserStatusDto, @Req() req: any) {
     return await this.userService.updateStatus(userId, dto, req.user);
   }
 

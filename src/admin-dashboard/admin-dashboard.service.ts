@@ -1,5 +1,5 @@
 import { Injectable } from "@nestjs/common";
-import { OrderStatus, PaymentStatus, ReturnRequestStatus, Role, UserStatus } from "@prisma/client";
+import { ApprovalState, OperationalState, OrderStatus, PaymentStatus, ReturnRequestStatus, Role } from "@prisma/client";
 import { PrismaService } from "prisma/prisma.service";
 
 @Injectable()
@@ -199,7 +199,8 @@ export class AdminDashboardService {
         },
 
         createdAt: true,
-        status: true,
+        operationalState: true,
+        approvalState: true,
         updatedAt: true
       }
     });
@@ -229,7 +230,8 @@ export class AdminDashboardService {
         storeName: store.storeName,
         sellerName: store.seller.user.name,
         createdAt: store.createdAt,
-        status: store.status,
+        operationalState: store.operationalState,
+        approvalState: store.approvalState,
         averageRating,
         completedOrders,
         canceledOrders,
@@ -246,16 +248,16 @@ export class AdminDashboardService {
     };
   }
 
-  async getSellersInfo(status: UserStatus = UserStatus.Active, pageNo: number = 1, pageSize: number = 10) {
+  async getSellersInfo(operationalState: OperationalState = OperationalState.Active, pageNo: number = 1, pageSize: number = 10) {
     const skip = (pageNo - 1) * pageSize;
 
     const sellersData = await this.prisma.seller.findMany({
       skip,
       take: pageSize,
-      where: { user: { status } },
+      where: { user: { operationalState } },
       select: {
         id: true,
-        user: { select: { name: true, createdAt: true, status: true } },
+        user: { select: { name: true, createdAt: true, operationalState: true } },
         stores: {
           select: {
             id: true,
@@ -309,7 +311,8 @@ export class AdminDashboardService {
         completedOrders,
         canceledOrders,
         returnedOrders: returnRequests,
-        status: seller.user.status,
+        operationalState: seller.user.operationalState,
+        approvalState: seller.user.operationalState,
         createdAt: seller.user.createdAt
       };
     });
@@ -323,17 +326,17 @@ export class AdminDashboardService {
     };
   }
 
-  async getBuyersInfo(status: UserStatus = UserStatus.Active, pageNo: number = 1, pageSize: number = 10) {
+  async getBuyersInfo(operationalState: OperationalState = OperationalState.Active, pageNo: number = 1, pageSize: number = 10) {
     const skip = (pageNo - 1) * pageSize;
 
     const buyersData = await this.prisma.buyer.findMany({
       skip,
       take: pageSize,
       orderBy: { user: { createdAt: "desc" } },
-      where: { user: { status } },
+      where: { user: { operationalState } },
       select: {
         id: true,
-        user: { select: { name: true, status: true, createdAt: true } },
+        user: { select: { name: true, operationalState: true, approvalState: true, createdAt: true } },
         orders: true,
         returnRequests: true
       }
@@ -347,7 +350,8 @@ export class AdminDashboardService {
       return {
         id: buyer.id,
         name: buyer.user.name,
-        status: buyer.user.status,
+        operationalState: buyer.user.operationalState,
+        approvalState: buyer.user.approvalState,
         createdAt: buyer.user.createdAt,
         totalOrders,
         totalCanceled,
@@ -364,15 +368,15 @@ export class AdminDashboardService {
     };
   }
 
-  async getRidersInfo(status: UserStatus = UserStatus.Active, pageNo: number = 1, pageSize: number = 10) {
+  async getRidersInfo(operationalState: OperationalState = OperationalState.Active, pageNo: number = 1, pageSize: number = 10) {
     const skip = (pageNo - 1) * pageSize;
     const ridersData = await this.prisma.rider.findMany({
       skip,
       take: pageSize,
-      where: { user: { status } },
+      where: { user: { operationalState } },
       select: {
         id: true,
-        user: { select: { name: true, status: true, createdAt: true } },
+        user: { select: { name: true, operationalState: true, approvalState: true, createdAt: true } },
         amountToRecieve: true,
         orders: true,
         returnRequests: true
@@ -387,7 +391,8 @@ export class AdminDashboardService {
       return {
         id: rider.id,
         name: rider.user.name,
-        status: rider.user.status,
+        operationalState: rider.user.operationalState,
+        approvalState: rider.user.approvalState,
         createdAt: rider.user.createdAt,
         amountToRecieve: rider.amountToRecieve,
         totalDeliveries,
@@ -405,20 +410,21 @@ export class AdminDashboardService {
     };
   }
 
-  async getAdminsInfo(status: UserStatus = UserStatus.Active, pageNo: number = 1, pageSize: number = 10) {
+  async getAdminsInfo(operationalState: OperationalState = OperationalState.Active, pageNo: number = 1, pageSize: number = 10) {
     const skip = (pageNo - 1) * pageSize;
     const adminsData = await this.prisma.user.findMany({
       skip,
       take: pageSize,
       where: {
-        status,
+        operationalState,
         role: Role.Admin
       },
       select: {
         id: true,
         name: true,
         createdAt: true,
-        status: true
+        operationalState: true,
+        approvalState: true
       }
     });
 
