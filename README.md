@@ -1,98 +1,127 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# 🧠 Shopping Store – Backend API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+A scalable, production-ready backend API built with NestJS, TypeScript, and PostgreSQL, powering a modern e-commerce platform.
+Designed using clean architecture principles, modular design, and real-world backend patterns.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+This backend handles authentication, roles, stores, products, carts, orders, payments, and media storage.
 
-## Description
+## 🚀 Backend Highlights
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+- 🏗️ Modular NestJS architecture
+- 🔐 JWT-based authentication & role-based authorization
+- 🧩 Prisma ORM with PostgreSQL
+- 💳 Stripe payment integration
+- 🖼️ AWS S3 file storage
+- 🗑️ Soft deletes & transactional operations
+- 🛡️ DTO validation with class-validator
+- ⚡ Optimized for scalability & maintainability
 
-## Project setup
+## 🧱 Tech Stack
 
-```bash
-$ npm install
+- NestJS
+- TypeScript
+- PostgreSQL
+- Prisma ORM
+- JWT Authentication
+- Stripe API
+- AWS S3
+- Docker-ready architecture
+
+## 🧠 Architecture Overview
+
+- Feature-based modules
+- Controllers → Services → Repositories
+- DTOs for strict input validation
+- Guards & decorators for auth & roles
+- Centralized error handling
+- Transaction-safe business logic
+
+Built to scale like a real production system, not a demo API.
+
+## 🔐 Authentication & Authorization
+
+- JWT access & refresh tokens
+- Role system:</br>
+  - `SuperAdmin`</br>
+  - `Admin`</br>
+  - `Seller`</br>
+  - `Buyer`</br>
+  - `Rider`</br>
+- Custom guards & decorators
+- Secure logout & token rotation
+
+## 🛍️ Core Business Modules
+
+### 👤 Users
+
+- Registration & login
+- Role-based access
+- Soft delete support
+
+### 🏬 Stores
+
+- Seller store registration
+- Banner & icon upload (S3)
+- Approval & operational states
+- Product upload
+- Manage products
+
+### 📦 Products
+
+- Product CRUD
+- Multiple images
+- Video support
+- Category support
+- Stock & quantity management
+
+### 🛒 Cart & Wishlist
+
+- Atomic quantity updates (+1 / -1)
+- Transaction-safe operations
+- User-specific isolation
+
+### 📦 Orders & Payments
+
+- Stripe checkout
+- Order lifecycle management
+- Payment & order statuses
+
+## 🖼️ Media Handling
+
+- AWS S3 integration
+- Secure uploads
+- Image preview & deletion
+- Optimized for performance
+
+## ⚙️ Project Setup
+
+To start backend locally:
+
+```
+npm install
+npm run start:dev
 ```
 
-## Compile and run the project
+Swagger Api Docs can be found at:
 
-```bash
-# development
-$ npm run start
-
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+```
+http://localhost:5000/api
 ```
 
-## Run tests
+## 🌍 Environment Variables
 
-```bash
-# unit tests
-$ npm run test
-
-# e2e tests
-$ npm run test:e2e
-
-# test coverage
-$ npm run test:cov
+```
+DATABASE_URL=...
+JWT_ACCESS_SECRET=...
+JWT_REFRESH_SECRET=...
+STRIPE_SECRET_KEY=...
+AWS_S3_BUCKET=...
+AWS_ACCESS_KEY_ID=...
+AWS_SECRET_ACCESS_KEY=...
 ```
 
-## Deployment
+## 👨‍💻 Author
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
-
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
-
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
-```
-
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
-
-## Resources
-
-Check out a few resources that may come in handy when working with NestJS:
-
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
-
-## Support
-
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
-
-## Stay in touch
-
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
-
-## License
-
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+Ahsan Ali</br>
+Backend-focused Full Stack Developer</br>
+Specializing in NestJS, PostgreSQL, Prisma & scalable APIs</br>

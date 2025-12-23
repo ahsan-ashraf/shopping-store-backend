@@ -10,7 +10,7 @@ import { LoginResponseDto } from "./dto/response/login-response.dto";
 import { JwtService } from "@nestjs/jwt";
 import { CreateUserAdminDto } from "./dto/request/create-user-admin.dto";
 import { Role, UserStatus } from "src/types";
-import { Role as ActorRole } from "@prisma/client";
+import { Role as ActorRole, ApprovalState, OperationalState } from "@prisma/client";
 
 @Injectable()
 export class AuthService {
@@ -147,10 +147,7 @@ export class AuthService {
 
     const payload = await this.$getPayload(userData);
     const tokens = await this.$issueTokensForUser(userData.id, payload);
-    return {
-      ...tokens,
-      user: userData
-    };
+    return { ...tokens, userId: userData.id };
   }
   async createBuyer(dto: CreateUserBuyerDto): Promise<LoginResponseDto> {
     const hashedPassword = await this.$getHashedPassword(dto.password);
@@ -180,10 +177,7 @@ export class AuthService {
 
     const payload = await this.$getPayload(userData);
     const tokens = await this.$issueTokensForUser(userData.id, payload);
-    return {
-      ...tokens,
-      user: userData
-    };
+    return { ...tokens, userId: userData.id };
   }
   async createSeller(dto: CreateUserSellerDto): Promise<LoginResponseDto> {
     const hashedPassword = await this.$getHashedPassword(dto.password);
@@ -211,10 +205,7 @@ export class AuthService {
 
     const payload = await this.$getPayload(userData);
     const tokens = await this.$issueTokensForUser(userData.id, payload);
-    return {
-      ...tokens,
-      user: userData
-    };
+    return { ...tokens, userId: userData.id };
   }
   async createRider(dto: CreateUserRiderDto): Promise<LoginResponseDto> {
     const hashedPassword = await this.$getHashedPassword(dto.password);
@@ -243,7 +234,7 @@ export class AuthService {
     const payload = await this.$getPayload(userData);
     const tokens = await this.$issueTokensForUser(userData.id, payload);
 
-    return { ...tokens, user: userData };
+    return { ...tokens, userId: userData.id };
   }
 
   async loginUser(dto: LoginRequestDto): Promise<LoginResponseDto> {
@@ -261,10 +252,27 @@ export class AuthService {
     const payload = await this.$getPayload(userData);
     const tokens = await this.$issueTokensForUser(userData.id, payload);
 
-    return {
-      ...tokens,
-      user: userData
-    };
+    return { ...tokens, userId: userData.id };
+  }
+  async getMe(userId: string): Promise<any> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { id: true, name: true, email: true, role: true, dob: true, gender: true, operationalState: true, approvalState: true, addresses: true, buyer: true, seller: true, rider: true }
+    });
+
+    if (!user) {
+      throw new UnauthorizedException("User not found");
+    }
+
+    if (user.approvalState !== ApprovalState.Approved) {
+      throw new UnauthorizedException("This account is not approved");
+    } else if (user.operationalState === OperationalState.Suspended) {
+      throw new UnauthorizedException("This account is suspended");
+    } else if (user.operationalState === OperationalState.Blocked) {
+      throw new UnauthorizedException("This account is permanently blocked");
+    }
+
+    return user;
   }
   async logoutUser(refreshToken: string) {
     const decodedRefreshToken = this.jwt.verify(refreshToken, { secret: process.env.JWT_REFRESH_SECRET });
@@ -300,6 +308,6 @@ export class AuthService {
     const payload = await this.$getPayload(userData);
     const tokens = await this.$issueTokensForUser(userData.id, payload);
 
-    return { ...tokens, user: userData };
+    return { ...tokens, userId: userData.id };
   }
 }

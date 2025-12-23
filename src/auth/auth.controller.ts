@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, HttpCode, Post, Req, Res, UseGuards } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Get, HttpCode, Post, Req, Res, UseGuards } from "@nestjs/common";
 import { AuthService } from "./auth.service";
 import { Response, Request } from "express";
 import { CreateUserSellerDto } from "./dto/request/create-user-seller.dto";
@@ -40,7 +40,8 @@ export class AuthController {
   @Post("/register/admin")
   @HttpCode(201)
   async registerAdmin(@Body() dto: CreateUserAdminDto, @Res({ passthrough: true }) res: Response) {
-    const { accessToken, refreshToken, user } = await this.authService.createAdmin(dto);
+    const { accessToken, refreshToken, userId } = await this.authService.createAdmin(dto);
+    const user = await this.authService.getMe(userId);
     this.setResponseCookie(res, accessToken, refreshToken, user);
     return user;
   }
@@ -48,7 +49,8 @@ export class AuthController {
   @Post("/register/seller")
   @HttpCode(201)
   async registerSeller(@Body() dto: CreateUserSellerDto, @Res({ passthrough: true }) res: Response) {
-    const { accessToken, refreshToken, user } = await this.authService.createSeller(dto);
+    const { accessToken, refreshToken, userId } = await this.authService.createSeller(dto);
+    const user = await this.authService.getMe(userId);
     this.setResponseCookie(res, accessToken, refreshToken, user);
     return user;
   }
@@ -56,7 +58,8 @@ export class AuthController {
   @Post("/register/buyer")
   @HttpCode(201)
   async registerBuyer(@Body() dto: CreateUserBuyerDto, @Res({ passthrough: true }) res: Response) {
-    const { accessToken, refreshToken, user } = await this.authService.createBuyer(dto);
+    const { accessToken, refreshToken, userId } = await this.authService.createBuyer(dto);
+    const user = await this.authService.getMe(userId);
     this.setResponseCookie(res, accessToken, refreshToken, user);
     return user;
   }
@@ -64,7 +67,8 @@ export class AuthController {
   @Post("/register/rider")
   @HttpCode(201)
   async registerRider(@Body() dto: CreateUserRiderDto, @Res({ passthrough: true }) res: Response) {
-    const { accessToken, refreshToken, user } = await this.authService.createRider(dto);
+    const { accessToken, refreshToken, userId } = await this.authService.createRider(dto);
+    const user = await this.authService.getMe(userId);
     this.setResponseCookie(res, accessToken, refreshToken, user);
     return user;
   }
@@ -72,12 +76,22 @@ export class AuthController {
   @Post("/login")
   @HttpCode(200)
   async login(@Body() dto: LoginRequestDto, @Res({ passthrough: true }) res: Response) {
-    const { accessToken, refreshToken, user } = await this.authService.loginUser(dto);
+    const { accessToken, refreshToken, userId } = await this.authService.loginUser(dto);
+    const user = await this.authService.getMe(userId);
     this.setResponseCookie(res, accessToken, refreshToken, user);
     return user;
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard)
+  @Get("/me")
+  @HttpCode(200)
+  async getMe(@Req() req: any) {
+    const userId = req.user.id;
+    const user = await this.authService.getMe(userId);
+    return user;
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Post("/logout")
   @HttpCode(200)
   async logout(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
@@ -102,8 +116,8 @@ export class AuthController {
       return res.status(400).json({ message: "Tokens not found in cookies" });
     }
 
-    const { accessToken, refreshToken, user } = await this.authService.refreshTokens(oldRefreshToken);
-
+    const { accessToken, refreshToken, userId } = await this.authService.refreshTokens(oldRefreshToken);
+    const user = await this.authService.getMe(userId);
     this.setResponseCookie(res, accessToken, refreshToken, user);
 
     return user;

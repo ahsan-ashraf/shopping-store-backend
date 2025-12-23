@@ -8,9 +8,8 @@ async function bootstrap() {
   const app = await NestFactory.create(AppModule);
 
   const origins = [
-    'http://localhost:3000',     // React / Next dev
-    'http://localhost:5173',     // Vite
-    'https://yourdomain.com',    // Production frontend
+    "http://localhost:5173", // Vite
+    "https://yourdomain.com" // Production frontend
   ];
 
   app.enableCors({
@@ -18,12 +17,12 @@ async function bootstrap() {
       if (!origin || origins.includes(origin)) {
         callback(null, true);
       } else {
-        callback(new Error('Not allowed by CORS'));
+        callback(new Error("Not allowed by CORS"));
       }
     },
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
-    credentials: true, // REQUIRED if using cookies (JWT refresh token)
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true // REQUIRED if using cookies (JWT refresh token)
   });
 
   app.useGlobalPipes(
@@ -33,7 +32,7 @@ async function bootstrap() {
       transform: true // transforms strings proper types (Date, number, etc)
     })
   );
-  
+
   app.use(cookieParser()); // <-- enable cookie parsing
 
   // swagger configuration
@@ -42,8 +41,8 @@ async function bootstrap() {
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup("api", app, document);
 
-  await app.listen(process.env.PORT ?? 3000);
-  console.log(`Server is up and running on port ${process.env.PORT ?? 3000}`);
-  console.log("Swagger UI available at: http://localhost:3000/api");
+  await app.listen(process.env.PORT ?? 5000);
+  console.log(`Server is up and running on port ${process.env.PORT ?? 5000}`);
+  console.log("Swagger UI available at: http://localhost:5000/api");
 }
 bootstrap();
